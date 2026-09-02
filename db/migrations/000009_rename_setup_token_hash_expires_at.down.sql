@@ -1,0 +1,2 @@
+-- Rename setup_token_expires_at back to setup_token_hash_expires_at
+ALTER TABLE invitations RENAME COLUMN setup_token_expires_at TO setup_token_hash_expires_at;

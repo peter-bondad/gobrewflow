@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_invitations_setup_token_hash ON invitations(setup_token_hash);
