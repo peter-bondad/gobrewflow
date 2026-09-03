@@ -74,3 +74,8 @@ func (j *JWTService) ExtractJTI(claims jwt.MapClaims) (string, bool) {
 	jti, ok := claims["jti"].(string)
 	return jti, ok
 }
+
+func (j *JWTService) ExtractExpiration(claims jwt.MapClaims) (string, bool) {
+	exp, ok := claims["exp"].(string)
+	return exp, ok
+}

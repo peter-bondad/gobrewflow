@@ -1,4 +1,5 @@
 package user
+
 import (
 	"context"
 	"fmt"
@@ -13,17 +14,17 @@ type UserService interface {
 }
 
 type userService struct {
-	repo                UserRepository
-	auth                *auth.JWTService
-	tokenBlacklistRepo  auth.TokenBlacklistRepository
+	repo               UserRepository
+	auth               *auth.JWTService
+	tokenBlacklistRepo auth.TokenBlacklistRepository
 }
 
 // NewUserService is a constructor function for the userService struct. It takes a UserRepository interface as an argument and returns a UserService interface. This allows for dependency injection and makes it easier to mock the service in tests.
 func NewUserService(repo UserRepository, auth *auth.JWTService, tokenBlacklistRepo auth.TokenBlacklistRepository) UserService {
 	return &userService{
-		repo:                repo,
-		auth:                auth,
-		tokenBlacklistRepo:  tokenBlacklistRepo,
+		repo:               repo,
+		auth:               auth,
+		tokenBlacklistRepo: tokenBlacklistRepo,
 	}
 }
 

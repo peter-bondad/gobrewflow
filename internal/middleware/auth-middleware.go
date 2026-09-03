@@ -94,6 +94,8 @@ func (m *AuthMiddleware) AuthHandler() gin.HandlerFunc {
 		}
 
 		c.Set(UserIDKey, userID)
+		c.Set(JTIKey, jti)
+		c.Set(ExpKey, claims["exp"])
 
 		c.Next()
 	}

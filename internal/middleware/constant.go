@@ -1,3 +1,7 @@
 package middleware
 
-const UserIDKey string = "userID"
+const (
+	UserIDKey = "user_id"
+	JTIKey    = "jti"
+	ExpKey    = "exp"
+)
