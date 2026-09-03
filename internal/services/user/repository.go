@@ -12,6 +12,7 @@ type UserRepository interface {
 	InsertUser(ctx context.Context, tx bun.IDB, user *User) error
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
+	ListUsers(ctx context.Context, input UserListInput) ([]UserListItem, error)
 	UpdateUser(ctx context.Context, user *User) error
 }
 
@@ -48,6 +49,30 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*User, 
 		return nil, err
 	}
 	return user, nil
+}
+
+func (r *userRepository) ListUsers(
+	ctx context.Context,
+	input UserListInput,
+) ([]UserListItem, error) {
+
+	userItems := make([]UserListItem, 0)
+
+	query := r.db.NewSelect().
+		Model(&userItems).
+		Column("id", "email", "full_name", "role").
+		Limit(input.Limit).
+		Offset(input.Offset)
+
+	if input.UserRole != nil {
+		query = query.Where("role = ?", *input.UserRole)
+	}
+
+	if err := query.Scan(ctx); err != nil {
+		return nil, err
+	}
+
+	return userItems, nil
 }
 
 func (r *userRepository) UpdateUser(ctx context.Context, user *User) error {

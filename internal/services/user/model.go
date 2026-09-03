@@ -15,6 +15,19 @@ const (
 	Staff   UserRole = "staff"
 )
 
+type UserListInput struct {
+	Limit    int
+	Offset   int
+	UserRole *UserRole
+}
+type UserListItem struct {
+	bun.BaseModel `bun:"table:users,alias:u"`
+	ID            uuid.UUID `json:"id"`
+	Email         string    `json:"email"`
+	FullName      string    `json:"full_name"`
+	Role          UserRole  `json:"role"`
+}
+
 type User struct {
 	bun.BaseModel `bun:"table:users,alias:u"`
 

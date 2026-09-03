@@ -23,10 +23,10 @@ type Server struct {
 }
 
 type Dependencies struct {
-	UserRepo          user.UserRepository
-	UserHandler       user.UserHandler
-	InvitationHandler invitation.InvitationHandler
-	JwtService        *auth.JWTService
+	UserRepo           user.UserRepository
+	UserHandler        user.UserHandler
+	InvitationHandler  invitation.InvitationHandler
+	JwtService         *auth.JWTService
 	TokenBlacklistRepo auth.TokenBlacklistRepository
 }
 
@@ -50,7 +50,7 @@ func New(cfg *config.Config, log *slog.Logger, deps Dependencies) (*Server, erro
 
 	s.routes()
 	s.publicRoutes(deps.UserHandler, deps.InvitationHandler)
-	s.protectedRoutes(authMiddleware, deps.UserRepo, deps.InvitationHandler)
+	s.protectedRoutes(authMiddleware, deps.UserRepo, deps.UserHandler, deps.InvitationHandler)
 
 	return s, nil
 }

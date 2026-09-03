@@ -32,12 +32,14 @@ func (s *Server) publicRoutes(userHandler user.UserHandler, invitationHandler in
 func (s *Server) protectedRoutes(
 	authMiddleware *middleware.AuthMiddleware,
 	userRepo user.UserRepository,
+	userHandler user.UserHandler,
 	invitationHandler invitation.InvitationHandler,
 ) {
 	protectedAPI := s.Server.Group("/api/protected")
 
 	protectedAPI.Use(authMiddleware.AuthHandler())
 
+	userAPI := protectedAPI.Group("/users")
 	invitationAPI := protectedAPI.Group("/invitations")
 
 	invitationAPI.Use(
@@ -48,6 +50,7 @@ func (s *Server) protectedRoutes(
 		),
 	)
 
+	userAPI.GET("/", userHandler.ListUsers)
 	invitationAPI.POST("/send", invitationHandler.SendInvitation)
 	invitationAPI.POST(":id/cancel", invitationHandler.CancelInvitation)
 	invitationAPI.GET("/", invitationHandler.ListInvitations)
