@@ -29,7 +29,7 @@ func (m *AuthMiddleware) AuthHandler() gin.HandlerFunc {
 		// check if auth header is empty string
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-				"error": "authorization header missing",
+				"error": "unauthorized",
 			})
 			return
 		}
