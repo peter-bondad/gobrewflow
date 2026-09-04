@@ -34,12 +34,12 @@ func NewInvitationRepository(db *bun.DB) InvitationRepository {
 
 func (r *invitationRepository) CreateInvitation(ctx context.Context, email string, inviterID uuid.UUID, invitationTokenHash string, expiresAt time.Time) (*Invitation, error) {
 	invitation := &Invitation{
-		ID:        uuid.New(),
-		Email:     email,
-		InvitedBy: inviterID,
+		ID:                  uuid.New(),
+		Email:               email,
+		InvitedBy:           inviterID,
 		InvitationTokenHash: invitationTokenHash,
-		ExpiresAt: expiresAt,
-		Status:    InvitationPending,
+		ExpiresAt:           expiresAt,
+		Status:              InvitationPending,
 	}
 
 	_, err := r.db.NewInsert().Model(invitation).Returning("*").Exec(ctx, invitation)
@@ -120,13 +120,13 @@ func (r *invitationRepository) AcceptInvitation(
 	invitationID uuid.UUID,
 	now time.Time,
 	setupTokenHash string,
-	setupTokenHashExpiresAt time.Time,
+	setupTokenExpiresAt time.Time,
 ) error {
 	result, err := db.NewUpdate().
 		Model((*Invitation)(nil)).
 		Set("status = ?", InvitationAccepted).
 		Set("setup_token_hash = ?", setupTokenHash).
-		Set("setup_token_expires_at = ?", setupTokenHashExpiresAt).
+		Set("setup_token_expires_at = ?", setupTokenExpiresAt).
 		Set("accepted_at = ?", now).
 		Set("updated_at = ?", now).
 		Where("id = ?", invitationID).
