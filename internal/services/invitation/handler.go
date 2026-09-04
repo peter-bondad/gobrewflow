@@ -29,11 +29,11 @@ func NewInvitationHandler(service InvitationService) InvitationHandler {
 }
 
 type SendInvitationResponse struct {
-	ID             uuid.UUID `json:"id"`
-	Email          string    `json:"email"`
+	ID              uuid.UUID `json:"id"`
+	Email           string    `json:"email"`
 	InvitationToken string    `json:"invitation_token"`
-	ExpiresAt      time.Time `json:"expires_at"`
-	Status         string    `json:"status"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	Status          string    `json:"status"`
 }
 
 type AcceptInvitationResponse struct {
