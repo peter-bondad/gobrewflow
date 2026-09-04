@@ -128,11 +128,8 @@ func (s *invitationService) AcceptInvitation(
 			return err
 		}
 		setupTokenHash := hashToken(setupToken)
-		setupTokenExpiresAt := now.Add(15 * time.Minute)
+		setupTokenExpiresAt := now.Add(s.invitationConfig.TTL * time.Minute)
 
-		fmt.Println("NOW:", now)
-		fmt.Println("SETUP TOKEN EXPIRES:", setupTokenExpiresAt)
-		fmt.Println("TTL:", setupTokenExpiresAt.Sub(now))
 		if err := s.invitationRepo.AcceptInvitation(
 			ctx,
 			tx,
