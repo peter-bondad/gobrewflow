@@ -113,8 +113,8 @@ func (s *invitationService) AcceptInvitation(
 			return ErrInvitationNotFound
 		}
 
-		if invitation.Status != InvitationPending {
-			return ErrInvitationNotPending
+		if invitation.Status == InvitationAccepted {
+			return ErrInvitationAlreadyAccepted
 		}
 
 		now := time.Now()
@@ -130,6 +130,9 @@ func (s *invitationService) AcceptInvitation(
 		setupTokenHash := hashToken(setupToken)
 		setupTokenExpiresAt := now.Add(15 * time.Minute)
 
+		fmt.Println("NOW:", now)
+		fmt.Println("SETUP TOKEN EXPIRES:", setupTokenExpiresAt)
+		fmt.Println("TTL:", setupTokenExpiresAt.Sub(now))
 		if err := s.invitationRepo.AcceptInvitation(
 			ctx,
 			tx,
@@ -160,6 +163,7 @@ func (s *invitationService) AcceptInvitation(
 type SetPasswordInput struct {
 	SetupToken string
 	FirstName  string
+	MiddleName *string
 	LastName   string
 	Password   string
 }
@@ -211,12 +215,13 @@ func (s *invitationService) SetPassword(
 
 		// 5. Create user
 		newUser := &user.User{
-			ID:        uuid.New(),
-			Email:     invitation.Email,
-			FirstName: input.FirstName,
-			LastName:  input.LastName,
-			FullName:  input.FirstName + " " + input.LastName,
-			Role:      user.Staff,
+			ID:         uuid.New(),
+			Email:      invitation.Email,
+			FirstName:  input.FirstName,
+			MiddleName: input.MiddleName,
+			LastName:   input.LastName,
+			FullName:   input.FirstName + " " + input.LastName,
+			Role:       user.Staff,
 		}
 
 		if err := s.userRepo.InsertUser(

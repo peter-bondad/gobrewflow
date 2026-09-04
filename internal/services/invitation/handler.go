@@ -114,6 +114,8 @@ func (h *invitationHandler) AcceptInvitation(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "invitation is not pending"})
 		case ErrInvitationExpired:
 			c.JSON(http.StatusGone, gin.H{"error": "invitation has expired"})
+		case ErrInvitationAlreadyAccepted:
+			c.JSON(http.StatusConflict, gin.H{"error": "invitation already accepted"})
 		default:
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to accept invitation"})
 		}
@@ -133,11 +135,12 @@ func (h *invitationHandler) AcceptInvitation(c *gin.Context) {
 }
 
 type SetPasswordRequest struct {
-	SetupToken      string `json:"setup_token" binding:"required"`
-	FirstName       string `json:"first_name" binding:"required"`
-	LastName        string `json:"last_name" binding:"required"`
-	Password        string `json:"password" binding:"required,min=6"`
-	ConfirmPassword string `json:"confirm_password" binding:"required"`
+	SetupToken      string  `json:"setup_token" binding:"required"`
+	FirstName       string  `json:"first_name" binding:"required"`
+	MiddleName      *string `json:"middle_name"`
+	LastName        string  `json:"last_name" binding:"required"`
+	Password        string  `json:"password" binding:"required,min=6"`
+	ConfirmPassword string  `json:"confirm_password" binding:"required"`
 }
 
 type SetPasswordResponse struct {
@@ -152,7 +155,7 @@ func (h *invitationHandler) SetPassword(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid request",
+			"error": err.Error(),
 		})
 		return
 	}
