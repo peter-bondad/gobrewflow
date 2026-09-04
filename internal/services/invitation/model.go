@@ -27,11 +27,11 @@ type Invitation struct {
 	InvitationTokenHash string           `bun:"invitation_token_hash,notnull"`
 	InvitationToken     string           `bun:"-"`
 	InvitedBy           uuid.UUID        `bun:"invited_by,notnull"`
-	UserID      *uuid.UUID       `bun:"user_id"`
-	Status      InvitationStatus `bun:"status,notnull,default:'pending'"`
-	ExpiresAt   time.Time        `bun:"expires_at,notnull"`
-	AcceptedAt  *time.Time       `bun:"accepted_at"`
-	CancelledAt *time.Time       `bun:"cancelled_at"`
+	UserID              *uuid.UUID       `bun:"user_id"`
+	Status              InvitationStatus `bun:"status,notnull,default:'pending'"`
+	ExpiresAt           time.Time        `bun:"expires_at,notnull"`
+	AcceptedAt          *time.Time       `bun:"accepted_at"`
+	CancelledAt         *time.Time       `bun:"cancelled_at"`
 
 	SetupTokenHash      *string    `bun:"setup_token_hash"`
 	SetupTokenExpiresAt *time.Time `bun:"setup_token_expires_at"`

@@ -29,20 +29,9 @@ func NewInvitationHandler(service InvitationService) InvitationHandler {
 }
 
 type SendInvitationResponse struct {
-	ID              uuid.UUID `json:"id"`
 	Email           string    `json:"email"`
 	InvitationToken string    `json:"invitation_token"`
 	ExpiresAt       time.Time `json:"expires_at"`
-	Status          string    `json:"status"`
-}
-
-type AcceptInvitationResponse struct {
-	ID                  uuid.UUID  `json:"id"`
-	Email               string     `json:"email"`
-	Status              string     `json:"status"`
-	AcceptedAt          *time.Time `json:"accepted_at"`
-	SetupToken          string     `json:"setup_token"`
-	SetupTokenExpiresAt time.Time  `json:"setup_token_expires_at"`
 }
 
 type SendInvitationRequest struct {
@@ -84,11 +73,9 @@ func (h *invitationHandler) SendInvitation(c *gin.Context) {
 	}
 
 	resp := SendInvitationResponse{
-		ID:              invitation.ID,
 		Email:           invitation.Email,
 		InvitationToken: invitation.InvitationToken,
 		ExpiresAt:       invitation.ExpiresAt,
-		Status:          string(invitation.Status),
 	}
 
 	c.JSON(http.StatusCreated, resp)
@@ -96,6 +83,12 @@ func (h *invitationHandler) SendInvitation(c *gin.Context) {
 
 type AcceptInvitationRequest struct {
 	InvitationToken string `json:"invitation_token" binding:"required"`
+}
+
+type AcceptInvitationResponse struct {
+	Email               string    `json:"email"`
+	SetupToken          string    `json:"setup_token"`
+	SetupTokenExpiresAt time.Time `json:"setup_token_expires_at"`
 }
 
 func (h *invitationHandler) AcceptInvitation(c *gin.Context) {
@@ -123,10 +116,7 @@ func (h *invitationHandler) AcceptInvitation(c *gin.Context) {
 	}
 
 	resp := AcceptInvitationResponse{
-		ID:                  invitation.ID,
 		Email:               invitation.Email,
-		Status:              string(invitation.Status),
-		AcceptedAt:          invitation.AcceptedAt,
 		SetupToken:          invitation.SetupToken,
 		SetupTokenExpiresAt: *invitation.SetupTokenExpiresAt,
 	}

@@ -42,7 +42,7 @@ func (r *invitationRepository) CreateInvitation(ctx context.Context, email strin
 		Status:              InvitationPending,
 	}
 
-	_, err := r.db.NewInsert().Model(invitation).Returning("*").Exec(ctx, invitation)
+	_, err := r.db.NewInsert().Model(invitation).Exec(ctx, invitation)
 	if err != nil {
 		return nil, err
 	}
