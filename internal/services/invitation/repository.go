@@ -9,8 +9,8 @@ import (
 )
 
 type InvitationRepository interface {
-	CreateInvitation(ctx context.Context, email string, inviterID uuid.UUID, token string, expiresAt time.Time) (*Invitation, error)
-	GetInvitationByToken(ctx context.Context, db bun.IDB, token string) (*Invitation, error)
+	CreateInvitation(ctx context.Context, email string, inviterID uuid.UUID, invitationTokenHash string, expiresAt time.Time) (*Invitation, error)
+	GetInvitationByTokenHash(ctx context.Context, db bun.IDB, invitationTokenHash string) (*Invitation, error)
 	GetInvitationByID(ctx context.Context, id uuid.UUID) (*Invitation, error)
 	GetPendingInvitationByEmail(ctx context.Context, email string) (*Invitation, error)
 	GetInvitationsByInviter(ctx context.Context, inviterID uuid.UUID) ([]Invitation, error)
@@ -32,12 +32,12 @@ func NewInvitationRepository(db *bun.DB) InvitationRepository {
 	}
 }
 
-func (r *invitationRepository) CreateInvitation(ctx context.Context, email string, inviterID uuid.UUID, token string, expiresAt time.Time) (*Invitation, error) {
+func (r *invitationRepository) CreateInvitation(ctx context.Context, email string, inviterID uuid.UUID, invitationTokenHash string, expiresAt time.Time) (*Invitation, error) {
 	invitation := &Invitation{
 		ID:        uuid.New(),
 		Email:     email,
 		InvitedBy: inviterID,
-		Token:     token,
+		InvitationTokenHash: invitationTokenHash,
 		ExpiresAt: expiresAt,
 		Status:    InvitationPending,
 	}
@@ -50,16 +50,16 @@ func (r *invitationRepository) CreateInvitation(ctx context.Context, email strin
 	return invitation, nil
 }
 
-func (r *invitationRepository) GetInvitationByToken(
+func (r *invitationRepository) GetInvitationByTokenHash(
 	ctx context.Context,
 	q bun.IDB,
-	token string,
+	invitationTokenHash string,
 ) (*Invitation, error) {
 	invitation := new(Invitation)
 
 	err := q.NewSelect().
 		Model(invitation).
-		Where("token = ?", token).
+		Where("invitation_token_hash = ?", invitationTokenHash).
 		Scan(ctx)
 
 	if err != nil {

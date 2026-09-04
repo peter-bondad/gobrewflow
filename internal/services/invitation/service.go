@@ -19,7 +19,7 @@ import (
 
 type InvitationService interface {
 	SendInvitation(ctx context.Context, email string, inviterID uuid.UUID) (*Invitation, error)
-	AcceptInvitation(ctx context.Context, token string) (*Invitation, error)
+	AcceptInvitation(ctx context.Context, invitationToken string) (*Invitation, error)
 	SetPassword(ctx context.Context, input SetPasswordInput) (*Invitation, error)
 	CancelInvitation(ctx context.Context, id uuid.UUID, requesterID uuid.UUID) error
 	GetInvitation(ctx context.Context, id uuid.UUID, requesterID uuid.UUID) (*Invitation, error)
@@ -71,29 +71,29 @@ func (s *invitationService) SendInvitation(ctx context.Context, email string, in
 	}
 
 	// Generate secure random token
-	token, err := generateToken()
+	invitationToken, err := generateToken()
 	if err != nil {
 		return nil, err
 	}
 
 	// hash generated invitation token for security purpose
-	hashedToken := hashToken(token)
+	invitationTokenHash := hashToken(invitationToken)
 
 	// TTL is fixed
 	expiresAt := time.Now().Add(s.invitationConfig.TTL)
 
-	invitation, err := s.invitationRepo.CreateInvitation(ctx, email, inviterID, hashedToken, expiresAt)
+	invitation, err := s.invitationRepo.CreateInvitation(ctx, email, inviterID, invitationTokenHash, expiresAt)
 	if err != nil {
 		return nil, err
 	}
 
-	invitation.Token = token
+	invitation.InvitationToken = invitationToken
 	return invitation, nil
 }
 
 func (s *invitationService) AcceptInvitation(
 	ctx context.Context,
-	token string,
+	invitationToken string,
 ) (*Invitation, error) {
 	var invitation *Invitation
 
@@ -103,11 +103,11 @@ func (s *invitationService) AcceptInvitation(
 	) error {
 		var err error
 
-		var invitationTokenHashed = hashToken(token)
-		invitation, err = s.invitationRepo.GetInvitationByToken(
+		var invitationTokenHash = hashToken(invitationToken)
+		invitation, err = s.invitationRepo.GetInvitationByTokenHash(
 			ctx,
 			tx,
-			invitationTokenHashed,
+			invitationTokenHash,
 		)
 		if err != nil {
 			return ErrInvitationNotFound

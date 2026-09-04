@@ -29,11 +29,11 @@ func NewInvitationHandler(service InvitationService) InvitationHandler {
 }
 
 type SendInvitationResponse struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	Token     string    `json:"token"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Status    string    `json:"status"`
+	ID             uuid.UUID `json:"id"`
+	Email          string    `json:"email"`
+	InvitationToken string    `json:"invitation_token"`
+	ExpiresAt      time.Time `json:"expires_at"`
+	Status         string    `json:"status"`
 }
 
 type AcceptInvitationResponse struct {
@@ -84,18 +84,18 @@ func (h *invitationHandler) SendInvitation(c *gin.Context) {
 	}
 
 	resp := SendInvitationResponse{
-		ID:        invitation.ID,
-		Email:     invitation.Email,
-		Token:     invitation.Token,
-		ExpiresAt: invitation.ExpiresAt,
-		Status:    string(invitation.Status),
+		ID:              invitation.ID,
+		Email:           invitation.Email,
+		InvitationToken: invitation.InvitationToken,
+		ExpiresAt:       invitation.ExpiresAt,
+		Status:          string(invitation.Status),
 	}
 
 	c.JSON(http.StatusCreated, resp)
 }
 
 type AcceptInvitationRequest struct {
-	Token string `json:"invitationToken" binding:"required"`
+	InvitationToken string `json:"invitation_token" binding:"required"`
 }
 
 func (h *invitationHandler) AcceptInvitation(c *gin.Context) {
@@ -105,7 +105,7 @@ func (h *invitationHandler) AcceptInvitation(c *gin.Context) {
 		return
 	}
 
-	invitation, err := h.service.AcceptInvitation(c.Request.Context(), input.Token)
+	invitation, err := h.service.AcceptInvitation(c.Request.Context(), input.InvitationToken)
 	if err != nil {
 		switch err {
 		case ErrInvitationNotFound:

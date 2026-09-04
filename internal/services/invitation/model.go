@@ -23,9 +23,10 @@ type Invitation struct {
 
 	ID uuid.UUID `bun:",pk"`
 
-	Email       string           `bun:"email,notnull"`
-	Token       string           `bun:"token,notnull"`
-	InvitedBy   uuid.UUID        `bun:"invited_by,notnull"`
+	Email               string           `bun:"email,notnull"`
+	InvitationTokenHash string           `bun:"invitation_token_hash,notnull"`
+	InvitationToken     string           `bun:"-"`
+	InvitedBy           uuid.UUID        `bun:"invited_by,notnull"`
 	UserID      *uuid.UUID       `bun:"user_id"`
 	Status      InvitationStatus `bun:"status,notnull,default:'pending'"`
 	ExpiresAt   time.Time        `bun:"expires_at,notnull"`
