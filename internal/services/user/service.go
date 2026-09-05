@@ -10,9 +10,9 @@ import (
 )
 
 type UserService interface {
-	Login(ctx context.Context, input LoginRequest) (*LoginResponse, error)
+	Login(ctx context.Context, input LoginInput) (string, error)
 	Logout(ctx context.Context, tokenString string) error
-	ListUsers(ctx context.Context, input UserListInput) ([]UserListItem, error)
+	ListUsers(ctx context.Context, input UserListParams) ([]UserListItem, error)
 }
 
 type userService struct {
@@ -32,21 +32,19 @@ func NewUserService(repo UserRepository, auth *auth.JWTService, tokenBlacklistRe
 
 func (s userService) Login(
 	ctx context.Context,
-	input LoginRequest,
-) (*LoginResponse, error) {
+	input LoginInput,
+) (string, error) {
 	user, err := s.repo.FindByEmail(ctx, input.Email)
 	if err != nil {
-		return nil, InvalidCredentials
+		return "", InvalidCredentials
 	}
 
 	token, _, err := s.auth.GenerateToken(user.ID.String())
 	if err != nil {
-		return nil, fmt.Errorf("generate token: %w", err)
+		return "", fmt.Errorf("generate token: %w", err)
 	}
 
-	return &LoginResponse{
-		Token: token,
-	}, nil
+	return token, nil
 }
 
 func (s userService) Logout(
@@ -72,31 +70,36 @@ func (s userService) Logout(
 	return s.tokenBlacklistRepo.RevokeToken(ctx, jti, expiresAt)
 }
 
+type LoginInput struct {
+	Email    string
+	Password string
+}
+
 func (s *userService) ListUsers(
 	ctx context.Context,
-	input UserListInput,
+	params UserListParams,
 ) ([]UserListItem, error) {
 
-	input.FullName = strings.TrimSpace(input.FullName)
+	params.FullName = strings.TrimSpace(params.FullName)
 
 	// Default pagination
-	if input.Limit <= 0 {
-		input.Limit = 10
+	if params.Limit <= 0 {
+		params.Limit = 10
 	}
 
 	// Maximum page size
-	if input.Limit > 100 {
-		input.Limit = 100
+	if params.Limit > 100 {
+		params.Limit = 100
 	}
 
 	// Offset cannot be negative
-	if input.Offset < 0 {
-		input.Offset = 0
+	if params.Offset < 0 {
+		params.Offset = 0
 	}
 
 	// Validate role
-	if input.UserRole != nil {
-		switch *input.UserRole {
+	if params.UserRole != nil {
+		switch *params.UserRole {
 		case Owner, Manager, Staff:
 			// valid
 		default:
@@ -104,5 +107,13 @@ func (s *userService) ListUsers(
 		}
 	}
 
-	return s.repo.ListUsers(ctx, input)
+	params = UserListParams{
+		FullName: params.FullName,
+		Limit:    params.Limit,
+		Offset:   params.Offset,
+		UserRole: params.UserRole,
+	}
+
+	return s.repo.ListUsers(ctx, params)
+
 }

@@ -17,6 +17,12 @@ type userHandler struct {
 	service UserService
 }
 
+func NewUserHandler(service UserService) UserHandler {
+	return &userHandler{
+		service: service,
+	}
+}
+
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -26,11 +32,6 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func NewUserHandler(service UserService) UserHandler {
-	return &userHandler{
-		service: service,
-	}
-}
 func (h *userHandler) Login(c *gin.Context) {
 	var input LoginRequest
 
@@ -39,16 +40,19 @@ func (h *userHandler) Login(c *gin.Context) {
 		return
 	}
 
-	response, err := h.service.Login(
+	token, err := h.service.Login(
 		c.Request.Context(),
-		input,
+		LoginInput{
+			Email:    input.Email,
+			Password: input.Password,
+		},
 	)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, LoginResponse{Token: token})
 }
 
 func (h *userHandler) Logout(c *gin.Context) {
@@ -89,7 +93,7 @@ func (h *userHandler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	input := UserListInput{
+	input := UserListParams{
 		FullName: req.FullName,
 		Limit:    req.Limit,
 		Offset:   req.Offset,

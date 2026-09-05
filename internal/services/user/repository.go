@@ -12,7 +12,7 @@ type UserRepository interface {
 	InsertUser(ctx context.Context, tx bun.IDB, user *User) error
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
-	ListUsers(ctx context.Context, input UserListInput) ([]UserListItem, error)
+	ListUsers(ctx context.Context, params UserListParams) ([]UserListItem, error)
 	UpdateUser(ctx context.Context, user *User) error
 }
 
@@ -51,9 +51,16 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*User, 
 	return user, nil
 }
 
+type UserListParams struct {
+	FullName string
+	Limit    int
+	Offset   int
+	UserRole *UserRole
+}
+
 func (r *userRepository) ListUsers(
 	ctx context.Context,
-	input UserListInput,
+	params UserListParams,
 ) ([]UserListItem, error) {
 	users := make([]UserListItem, 0)
 
@@ -61,20 +68,20 @@ func (r *userRepository) ListUsers(
 		Model(&users).
 		Column("email", "full_name", "role").
 		Order("full_name ASC").
-		Limit(input.Limit).
-		Offset(input.Offset)
+		Limit(params.Limit).
+		Offset(params.Offset)
 
-	if input.FullName != "" {
+	if params.FullName != "" {
 		query = query.Where(
 			"full_name ILIKE ?",
-			"%"+input.FullName+"%",
+			"%"+params.FullName+"%",
 		)
 	}
 
-	if input.UserRole != nil {
+	if params.UserRole != nil {
 		query = query.Where(
 			"role = ?",
-			*input.UserRole,
+			*params.UserRole,
 		)
 	}
 
