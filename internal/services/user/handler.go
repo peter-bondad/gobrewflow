@@ -73,9 +73,10 @@ func (h *userHandler) Logout(c *gin.Context) {
 }
 
 type ListUsersRequest struct {
-	Limit  int    `form:"limit"`
-	Offset int    `form:"offset"`
-	Role   string `form:"role"`
+	FullName string `form:"full_name"`
+	Limit    int    `form:"limit" binding:"gte=0,lte=100"`
+	Offset   int    `form:"offset" binding:"gte=0"`
+	Role     string `form:"role"`
 }
 
 func (h *userHandler) ListUsers(c *gin.Context) {
@@ -89,8 +90,9 @@ func (h *userHandler) ListUsers(c *gin.Context) {
 	}
 
 	input := UserListInput{
-		Limit:  req.Limit,
-		Offset: req.Offset,
+		FullName: req.FullName,
+		Limit:    req.Limit,
+		Offset:   req.Offset,
 	}
 
 	if req.Role != "" {

@@ -16,16 +16,17 @@ const (
 )
 
 type UserListInput struct {
+	FullName string
 	Limit    int
 	Offset   int
 	UserRole *UserRole
 }
+
 type UserListItem struct {
 	bun.BaseModel `bun:"table:users,alias:u"`
-	ID            uuid.UUID `json:"id"`
-	Email         string    `json:"email"`
-	FullName      string    `json:"full_name"`
-	Role          UserRole  `json:"role"`
+	Email         string   `json:"email"`
+	FullName      string   `json:"full_name"`
+	Role          UserRole `json:"role"`
 }
 
 type User struct {

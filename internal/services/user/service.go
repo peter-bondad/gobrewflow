@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"gobrewflow/internal/services/auth"
@@ -75,6 +76,8 @@ func (s *userService) ListUsers(
 	ctx context.Context,
 	input UserListInput,
 ) ([]UserListItem, error) {
+
+	input.FullName = strings.TrimSpace(input.FullName)
 
 	// Default pagination
 	if input.Limit <= 0 {

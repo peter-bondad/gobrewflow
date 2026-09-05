@@ -55,24 +55,34 @@ func (r *userRepository) ListUsers(
 	ctx context.Context,
 	input UserListInput,
 ) ([]UserListItem, error) {
-
-	userItems := make([]UserListItem, 0)
+	users := make([]UserListItem, 0)
 
 	query := r.db.NewSelect().
-		Model(&userItems).
-		Column("id", "email", "full_name", "role").
+		Model(&users).
+		Column("email", "full_name", "role").
+		Order("full_name ASC").
 		Limit(input.Limit).
 		Offset(input.Offset)
 
+	if input.FullName != "" {
+		query = query.Where(
+			"full_name ILIKE ?",
+			"%"+input.FullName+"%",
+		)
+	}
+
 	if input.UserRole != nil {
-		query = query.Where("role = ?", *input.UserRole)
+		query = query.Where(
+			"role = ?",
+			*input.UserRole,
+		)
 	}
 
 	if err := query.Scan(ctx); err != nil {
-		return nil, err
+		return users, err
 	}
 
-	return userItems, nil
+	return users, nil
 }
 
 func (r *userRepository) UpdateUser(ctx context.Context, user *User) error {
