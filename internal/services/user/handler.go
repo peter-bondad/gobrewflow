@@ -81,8 +81,8 @@ type ListUsersRequest struct {
 	FullName string    `form:"full_name"`
 	Email    string    `form:"email"`
 	Role     *UserRole `form:"role"`
-	Limit    int       `form:"limit" binding:"gte=0,lte=100"`
-	Page     int       `form:"page" binding:"gte=1"`
+	Limit    int       `form:"limit"`
+	Page     int       `form:"page"`
 }
 type ListUser struct {
 	FullName string   `json:"full_name"`
