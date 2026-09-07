@@ -28,6 +28,7 @@ func (s *categoryService) CreateCategory(
 	name string,
 ) (*Category, error) {
 	category := &Category{
+		ID:   uuid.New(),
 		Name: name,
 	}
 
