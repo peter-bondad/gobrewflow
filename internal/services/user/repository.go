@@ -29,6 +29,7 @@ func NewUserRepository(db *bun.DB) UserRepository {
 }
 
 func (r *userRepository) InsertUser(ctx context.Context, q bun.IDB, user *User) error {
+	user.ID = uuid.New()
 	_, err := q.NewInsert().Model(user).Exec(ctx)
 	return err
 }

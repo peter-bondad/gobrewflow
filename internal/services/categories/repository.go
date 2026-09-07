@@ -28,6 +28,7 @@ func (r *categoryRepository) CreateCategory(
 	ctx context.Context,
 	category *Category,
 ) error {
+	category.ID = uuid.New()
 	_, err := r.db.NewInsert().
 		Model(category).
 		Returning("*").
