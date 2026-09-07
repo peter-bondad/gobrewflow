@@ -2,6 +2,7 @@ package server
 
 import (
 	"gobrewflow/internal/middleware"
+	"gobrewflow/internal/services/categories"
 	"gobrewflow/internal/services/invitation"
 	"gobrewflow/internal/services/user"
 	"net/http"
@@ -34,6 +35,7 @@ func (s *Server) protectedRoutes(
 	userRepo user.UserRepository,
 	userHandler user.UserHandler,
 	invitationHandler invitation.InvitationHandler,
+	categoriesHandler categories.CategoryHandler,
 ) {
 	protectedAPI := s.Server.Group("/api/protected")
 
@@ -41,6 +43,7 @@ func (s *Server) protectedRoutes(
 
 	userAPI := protectedAPI.Group("/users")
 	invitationAPI := protectedAPI.Group("/invitations")
+	categoriesAPI := protectedAPI.Group("/categories")
 
 	invitationAPI.Use(
 		middleware.RequireRoles(
@@ -54,4 +57,9 @@ func (s *Server) protectedRoutes(
 	invitationAPI.POST("/send", invitationHandler.SendInvitation)
 	invitationAPI.POST(":id/cancel", invitationHandler.CancelInvitation)
 	invitationAPI.GET("/", invitationHandler.ListInvitations)
+
+	categoriesAPI.POST("/add", categoriesHandler.CreateCategory)
+	categoriesAPI.POST("/:id/update", categoriesHandler.UpdateCategoryName)
+	categoriesAPI.POST("/:id/status", categoriesHandler.SetCategoryStatus)
+	categoriesAPI.GET("/", categoriesHandler.ListCategories)
 }

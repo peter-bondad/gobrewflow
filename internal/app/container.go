@@ -4,6 +4,7 @@ import (
 	"gobrewflow/internal/config"
 	"gobrewflow/internal/services/account"
 	"gobrewflow/internal/services/auth"
+	"gobrewflow/internal/services/categories"
 	"gobrewflow/internal/services/invitation"
 	"gobrewflow/internal/services/user"
 
@@ -26,6 +27,8 @@ type Container struct {
 	JwtService *auth.JWTService
 
 	TokenBlacklistRepo auth.TokenBlacklistRepository
+
+	CategoriesHandler categories.CategoryHandler
 }
 
 func NewContainer(db *bun.DB, cfg *config.Config) *Container {
@@ -34,14 +37,13 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		Secret: []byte(cfg.JWT.Secret),
 	}
 
-	userRepo := user.NewUserRepository(db)
-	accountRepo := account.NewAccountRepository(db)
-	invitationRepo := invitation.NewInvitationRepository(db)
 	tokenBlacklistRepo := auth.NewTokenBlacklistRepository(db)
 
+	userRepo := user.NewUserRepository(db)
 	userService := user.NewUserService(userRepo, jwtService, tokenBlacklistRepo)
-
 	userHandler := user.NewUserHandler(userService)
+	accountRepo := account.NewAccountRepository(db)
+	invitationRepo := invitation.NewInvitationRepository(db)
 	invitationService := invitation.NewInvitationService(
 		db,
 		invitationRepo,
@@ -53,6 +55,10 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	invitationHandler := invitation.NewInvitationHandler(
 		invitationService,
 	)
+
+	categoriesRepo := categories.NewCategoryRepository(db)
+	categoriesService := categories.NewCategoryService(categoriesRepo)
+	categoriesHandler := categories.NewCategoryHandler(categoriesService)
 
 	return &Container{
 		InvitationRepo:    invitationRepo,
@@ -67,5 +73,6 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		JwtService: jwtService,
 
 		TokenBlacklistRepo: tokenBlacklistRepo,
+		CategoriesHandler:  categoriesHandler,
 	}
 }
