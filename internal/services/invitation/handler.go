@@ -57,7 +57,10 @@ func (h *invitationHandler) SendInvitation(c *gin.Context) {
 		return
 	}
 
-	invitation, err := h.service.SendInvitation(c.Request.Context(), input.Email, requesterUUID)
+	invitation, err := h.service.SendInvitation(c.Request.Context(), SendInvitationInput{
+		Email:     input.Email,
+		InviterID: requesterUUID,
+	})
 	if err != nil {
 		switch err {
 		case ErrForbidden:

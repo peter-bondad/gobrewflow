@@ -18,7 +18,7 @@ import (
 )
 
 type InvitationService interface {
-	SendInvitation(ctx context.Context, email string, inviterID uuid.UUID) (*Invitation, error)
+	SendInvitation(ctx context.Context, input SendInvitationInput) (*Invitation, error)
 	AcceptInvitation(ctx context.Context, invitationToken string) (*Invitation, error)
 	SetPassword(ctx context.Context, input SetPasswordInput) (*Invitation, error)
 	CancelInvitation(ctx context.Context, id uuid.UUID, requesterID uuid.UUID) error
@@ -44,9 +44,14 @@ func NewInvitationService(db *bun.DB, invitationRepo InvitationRepository, userR
 	}
 }
 
-func (s *invitationService) SendInvitation(ctx context.Context, email string, inviterID uuid.UUID) (*Invitation, error) {
+type SendInvitationInput struct {
+	Email     string
+	InviterID uuid.UUID
+}
+
+func (s *invitationService) SendInvitation(ctx context.Context, input SendInvitationInput) (*Invitation, error) {
 	// Validate inviter exists
-	inviter, err := s.userRepo.FindByID(ctx, inviterID)
+	inviter, err := s.userRepo.FindByID(ctx, input.InviterID)
 	if err != nil {
 		return nil, ErrInvitationNotFound
 	}
@@ -56,13 +61,13 @@ func (s *invitationService) SendInvitation(ctx context.Context, email string, in
 	}
 
 	// Check for existing pending invitation
-	existing, err := s.invitationRepo.GetPendingInvitationByEmail(ctx, email)
+	existing, err := s.invitationRepo.GetPendingInvitationByEmail(ctx, input.Email)
 	if err == nil && existing != nil {
 		return nil, ErrInvitationAlreadySent
 	}
 
 	// Check inviter limits (example: max 5 pending invitations)
-	count, err := s.invitationRepo.CountPendingInvitations(ctx, inviterID)
+	count, err := s.invitationRepo.CountPendingInvitations(ctx, input.InviterID)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +87,13 @@ func (s *invitationService) SendInvitation(ctx context.Context, email string, in
 	// TTL is fixed
 	expiresAt := time.Now().Add(s.invitationConfig.TTL)
 
-	invitation, err := s.invitationRepo.CreateInvitation(ctx, email, inviterID, invitationTokenHash, expiresAt)
+	invitation, err := s.invitationRepo.CreateInvitation(ctx, CreateInvitationParams{
+		ID:                  uuid.New(),
+		Email:               input.Email,
+		InviterID:           input.InviterID,
+		InvitationTokenHash: invitationTokenHash,
+		ExpiresAt:           expiresAt,
+	})
 	if err != nil {
 		return nil, err
 	}

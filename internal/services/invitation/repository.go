@@ -9,7 +9,7 @@ import (
 )
 
 type InvitationRepository interface {
-	CreateInvitation(ctx context.Context, email string, inviterID uuid.UUID, invitationTokenHash string, expiresAt time.Time) (*Invitation, error)
+	CreateInvitation(ctx context.Context, params CreateInvitationParams) (*Invitation, error)
 	GetInvitationByTokenHash(ctx context.Context, db bun.IDB, invitationTokenHash string) (*Invitation, error)
 	GetInvitationByID(ctx context.Context, id uuid.UUID) (*Invitation, error)
 	GetPendingInvitationByEmail(ctx context.Context, email string) (*Invitation, error)
@@ -32,13 +32,21 @@ func NewInvitationRepository(db *bun.DB) InvitationRepository {
 	}
 }
 
-func (r *invitationRepository) CreateInvitation(ctx context.Context, email string, inviterID uuid.UUID, invitationTokenHash string, expiresAt time.Time) (*Invitation, error) {
+type CreateInvitationParams struct {
+	ID                  uuid.UUID
+	Email               string
+	InviterID           uuid.UUID
+	InvitationTokenHash string
+	ExpiresAt           time.Time
+}
+
+func (r *invitationRepository) CreateInvitation(ctx context.Context, params CreateInvitationParams) (*Invitation, error) {
 	invitation := &Invitation{
-		ID:                  uuid.New(),
-		Email:               email,
-		InvitedBy:           inviterID,
-		InvitationTokenHash: invitationTokenHash,
-		ExpiresAt:           expiresAt,
+		ID:                  params.ID,
+		Email:               params.Email,
+		InvitedBy:           params.InviterID,
+		InvitationTokenHash: params.InvitationTokenHash,
+		ExpiresAt:           params.ExpiresAt,
 		Status:              InvitationPending,
 	}
 
