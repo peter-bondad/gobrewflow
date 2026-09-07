@@ -32,6 +32,7 @@ type SendInvitationResponse struct {
 	Email           string    `json:"email"`
 	InvitationToken string    `json:"invitation_token"`
 	ExpiresAt       time.Time `json:"expires_at"`
+	Message         string    `json:"message"`
 }
 
 type SendInvitationRequest struct {
@@ -79,6 +80,7 @@ func (h *invitationHandler) SendInvitation(c *gin.Context) {
 		Email:           invitation.Email,
 		InvitationToken: invitation.InvitationToken,
 		ExpiresAt:       invitation.ExpiresAt,
+		Message:         "Invitation sent successfully",
 	}
 
 	c.JSON(http.StatusCreated, resp)

@@ -30,10 +30,6 @@ type CreateCategoryRequest struct {
 	Name string `json:"name" binding:"required"`
 }
 
-type CreateCategoryResponse struct {
-	Data *Category `json:"data"`
-}
-
 func (h *categoryHandler) CreateCategory(c *gin.Context) {
 	var input CreateCategoryRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -41,14 +37,14 @@ func (h *categoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	category, err := h.service.CreateCategory(c.Request.Context(), input.Name)
+	_, err := h.service.CreateCategory(c.Request.Context(), input.Name)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create category"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, CreateCategoryResponse{
-		Data: category,
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Category created successfully",
 	})
 }
 
