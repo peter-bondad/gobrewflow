@@ -5,18 +5,18 @@ import (
 	"gobrewflow/internal/services/account"
 	"gobrewflow/internal/services/auth"
 	"gobrewflow/internal/services/categories"
-	"gobrewflow/internal/services/invitation"
+	"gobrewflow/internal/services/invitations"
 	"gobrewflow/internal/services/user"
 
 	"github.com/uptrace/bun"
 )
 
 type Container struct {
-	InvitationHandler invitation.InvitationHandler
+	InvitationHandler invitations.InvitationHandler
 
-	InvitationService invitation.InvitationService
+	InvitationService invitations.InvitationService
 
-	InvitationRepo invitation.InvitationRepository
+	InvitationRepo invitations.InvitationRepository
 
 	UserRepo user.UserRepository
 
@@ -43,8 +43,8 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	userService := user.NewUserService(userRepo, jwtService, tokenBlacklistRepo)
 	userHandler := user.NewUserHandler(userService)
 	accountRepo := account.NewAccountRepository(db)
-	invitationRepo := invitation.NewInvitationRepository(db)
-	invitationService := invitation.NewInvitationService(
+	invitationRepo := invitations.NewInvitationRepository(db)
+	invitationService := invitations.NewInvitationService(
 		db,
 		invitationRepo,
 		userRepo,
@@ -52,7 +52,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		cfg.Invitation,
 	)
 
-	invitationHandler := invitation.NewInvitationHandler(
+	invitationHandler := invitations.NewInvitationHandler(
 		invitationService,
 	)
 

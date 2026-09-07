@@ -1,4 +1,4 @@
-package invitation
+package invitations
 
 import (
 	"gobrewflow/internal/middleware"

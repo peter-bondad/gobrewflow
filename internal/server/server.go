@@ -6,7 +6,7 @@ import (
 	"gobrewflow/internal/middleware"
 	"gobrewflow/internal/services/auth"
 	"gobrewflow/internal/services/categories"
-	"gobrewflow/internal/services/invitation"
+	"gobrewflow/internal/services/invitations"
 	"gobrewflow/internal/services/user"
 	"gobrewflow/shared/logger"
 	"log/slog"
@@ -26,7 +26,7 @@ type Server struct {
 type Dependencies struct {
 	UserRepo           user.UserRepository
 	UserHandler        user.UserHandler
-	InvitationHandler  invitation.InvitationHandler
+	InvitationHandler  invitations.InvitationHandler
 	CategoriesHandler  categories.CategoryHandler
 	JwtService         *auth.JWTService
 	TokenBlacklistRepo auth.TokenBlacklistRepository

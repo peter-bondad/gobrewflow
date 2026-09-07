@@ -3,7 +3,7 @@ package server
 import (
 	"gobrewflow/internal/middleware"
 	"gobrewflow/internal/services/categories"
-	"gobrewflow/internal/services/invitation"
+	"gobrewflow/internal/services/invitations"
 	"gobrewflow/internal/services/user"
 	"net/http"
 
@@ -18,7 +18,7 @@ func (s *Server) routes() {
 	s.Server.GET("/health", s.handleHealth)
 }
 
-func (s *Server) publicRoutes(userHandler user.UserHandler, invitationHandler invitation.InvitationHandler) {
+func (s *Server) publicRoutes(userHandler user.UserHandler, invitationHandler invitations.InvitationHandler) {
 
 	api := s.Server.Group("/api")
 	api.POST("/login", userHandler.Login)
@@ -34,7 +34,7 @@ func (s *Server) protectedRoutes(
 	authMiddleware *middleware.AuthMiddleware,
 	userRepo user.UserRepository,
 	userHandler user.UserHandler,
-	invitationHandler invitation.InvitationHandler,
+	invitationHandler invitations.InvitationHandler,
 	categoriesHandler categories.CategoryHandler,
 ) {
 	protectedAPI := s.Server.Group("/api/protected")
