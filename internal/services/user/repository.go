@@ -12,7 +12,7 @@ type UserRepository interface {
 	InsertUser(ctx context.Context, tx bun.IDB, user *User) error
 	FindByID(ctx context.Context, id uuid.UUID) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
-	ListUsers(ctx context.Context, params UserListParams) ([]UserListItem, error)
+	ListUsers(ctx context.Context, params UserListParams) (UserListResult, error)
 	UpdateUser(ctx context.Context, user *User) error
 }
 
@@ -53,28 +53,39 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*User, 
 
 type UserListParams struct {
 	FullName string
+	Email    string
+	UserRole *UserRole
 	Limit    int
 	Offset   int
-	UserRole *UserRole
+}
+
+type UserListResult struct {
+	Data  []UserListItem
+	Total int
 }
 
 func (r *userRepository) ListUsers(
 	ctx context.Context,
 	params UserListParams,
-) ([]UserListItem, error) {
+) (UserListResult, error) {
+
 	users := make([]UserListItem, 0)
 
 	query := r.db.NewSelect().
 		Model(&users).
-		Column("email", "full_name", "role").
-		Order("full_name ASC").
-		Limit(params.Limit).
-		Offset(params.Offset)
+		Column("full_name", "email", "role")
 
 	if params.FullName != "" {
 		query = query.Where(
 			"full_name ILIKE ?",
 			"%"+params.FullName+"%",
+		)
+	}
+
+	if params.Email != "" {
+		query = query.Where(
+			"email ILIKE ?",
+			"%"+params.Email+"%",
 		)
 	}
 
@@ -85,11 +96,24 @@ func (r *userRepository) ListUsers(
 		)
 	}
 
-	if err := query.Scan(ctx); err != nil {
-		return users, err
+	total, err := query.Clone().Count(ctx)
+	if err != nil {
+		return UserListResult{}, err
 	}
 
-	return users, nil
+	err = query.
+		Order("full_name ASC").
+		Limit(params.Limit).
+		Offset(params.Offset).
+		Scan(ctx)
+	if err != nil {
+		return UserListResult{}, err
+	}
+
+	return UserListResult{
+		Data:  users,
+		Total: total,
+	}, nil
 }
 
 func (r *userRepository) UpdateUser(ctx context.Context, user *User) error {

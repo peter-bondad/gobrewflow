@@ -1,6 +1,7 @@
 package user
 
 import (
+	"gobrewflow/shared"
 	"net/http"
 	"strings"
 
@@ -77,10 +78,21 @@ func (h *userHandler) Logout(c *gin.Context) {
 }
 
 type ListUsersRequest struct {
-	FullName string `form:"full_name"`
-	Limit    int    `form:"limit" binding:"gte=0,lte=100"`
-	Offset   int    `form:"offset" binding:"gte=0"`
-	Role     string `form:"role"`
+	FullName string    `form:"full_name"`
+	Email    string    `form:"email"`
+	Role     *UserRole `form:"role"`
+	Limit    int       `form:"limit" binding:"gte=0,lte=100"`
+	Page     int       `form:"page" binding:"gte=1"`
+}
+type ListUser struct {
+	FullName string   `json:"full_name"`
+	Email    string   `json:"email"`
+	Role     UserRole `json:"role"`
+}
+
+type ListUserResponse struct {
+	Data       []ListUser        `json:"data"`
+	Pagination shared.Pagination `json:"pagination"`
 }
 
 func (h *userHandler) ListUsers(c *gin.Context) {
@@ -93,15 +105,16 @@ func (h *userHandler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	input := UserListParams{
+	input := ListUserInput{
 		FullName: req.FullName,
+		Email:    req.Email,
 		Limit:    req.Limit,
-		Offset:   req.Offset,
+		Page:     req.Page,
 	}
 
-	if req.Role != "" {
-		role := UserRole(req.Role)
-		input.UserRole = &role
+	if req.Role != nil {
+		role := UserRole(*req.Role)
+		input.Role = &role
 	}
 
 	users, err := h.service.ListUsers(
@@ -122,5 +135,25 @@ func (h *userHandler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, users)
+	data := make([]ListUser, 0, len(users.Data))
+
+	for _, user := range users.Data {
+		data = append(data, ListUser{
+			FullName: user.FullName,
+			Email:    user.Email,
+			Role:     user.Role,
+		})
+	}
+
+	resp := ListUserResponse{
+		Data: data,
+		Pagination: shared.Pagination{
+			Page:       users.Page,
+			Limit:      users.Limit,
+			Total:      users.Total,
+			TotalPages: users.TotalPages,
+		},
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
