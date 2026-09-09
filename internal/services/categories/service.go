@@ -7,7 +7,7 @@ import (
 )
 
 type CategoryServiceInterface interface {
-	CreateCategory(ctx context.Context, name string) (*Category, error)
+	CreateCategory(ctx context.Context, name string) error
 	UpdateCategoryName(ctx context.Context, id uuid.UUID, name string) (bool, error)
 	ListCategories(ctx context.Context, input CategoryListInput) (CategoryListOutput, error)
 	SetCategoryStatus(ctx context.Context, id uuid.UUID, isActive bool) (bool, error)
@@ -26,17 +26,26 @@ func NewCategoryService(repo CategoryRepositoryInterface) CategoryServiceInterfa
 func (s *categoryService) CreateCategory(
 	ctx context.Context,
 	name string,
-) (*Category, error) {
+) error {
 	category := &Category{
 		ID:   uuid.New(),
 		Name: name,
 	}
 
-	if err := s.repo.CreateCategory(ctx, category); err != nil {
-		return nil, err
+	exists, err := s.repo.ExistsByName(ctx, name)
+	if err != nil {
+		return err
 	}
 
-	return category, nil
+	if exists {
+		return CategoryNameAlreadyExists
+	}
+
+	if err := s.repo.InsertCategory(ctx, category); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *categoryService) UpdateCategoryName(ctx context.Context, id uuid.UUID, name string) (bool, error) {
