@@ -153,9 +153,11 @@ func (s *productService) ListProducts(ctx context.Context, input ProductListInpu
 	offset := (input.Page - 1) * input.Limit
 
 	params := ProductListParams{
-		Name:   input.Name,
-		Limit:  input.Limit,
-		Offset: offset,
+		Name:     input.Name,
+		Category: input.Category,
+		IsActive: input.IsActive,
+		Limit:    input.Limit,
+		Offset:   offset,
 	}
 
 	result, err := s.productRepo.ListProducts(ctx, params)
