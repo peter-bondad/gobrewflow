@@ -52,7 +52,7 @@ func (h *productHandler) CreateProduct(c *gin.Context) {
 		return
 	}
 
-	err := h.service.InsertProduct(c.Request.Context(), &ProductInput{
+	err := h.service.CreateProduct(c.Request.Context(), &ProductInput{
 		Name:       req.Name,
 		Slug:       req.Slug,
 		CategoryID: req.CategoryID,
