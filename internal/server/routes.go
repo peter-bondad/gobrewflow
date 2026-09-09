@@ -4,6 +4,7 @@ import (
 	"gobrewflow/internal/middleware"
 	"gobrewflow/internal/services/categories"
 	"gobrewflow/internal/services/invitations"
+	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
 	"net/http"
 
@@ -36,6 +37,7 @@ func (s *Server) protectedRoutes(
 	userHandler user.UserHandler,
 	invitationHandler invitations.InvitationHandler,
 	categoriesHandler categories.CategoryHandler,
+	productsHandler products.ProductHandler,
 ) {
 	protectedAPI := s.Server.Group("/api/protected")
 
@@ -44,7 +46,7 @@ func (s *Server) protectedRoutes(
 	userAPI := protectedAPI.Group("/users")
 	invitationAPI := protectedAPI.Group("/invitations")
 	categoriesAPI := protectedAPI.Group("/categories")
-
+	productsAPI := protectedAPI.Group("/products")
 	invitationAPI.Use(
 		middleware.RequireRoles(
 			userRepo,
@@ -55,11 +57,16 @@ func (s *Server) protectedRoutes(
 
 	userAPI.GET("/", userHandler.ListUsers)
 	invitationAPI.POST("/send", invitationHandler.SendInvitation)
-	invitationAPI.POST(":id/cancel", invitationHandler.CancelInvitation)
+	invitationAPI.POST("/:id/cancel", invitationHandler.CancelInvitation)
 	invitationAPI.GET("/", invitationHandler.ListInvitations)
 
 	categoriesAPI.POST("/add", categoriesHandler.CreateCategory)
 	categoriesAPI.POST("/:id/update", categoriesHandler.UpdateCategoryName)
 	categoriesAPI.POST("/:id/status", categoriesHandler.SetCategoryStatus)
 	categoriesAPI.GET("/", categoriesHandler.ListCategories)
+
+	productsAPI.POST("/add", productsHandler.CreateProduct)
+	productsAPI.GET("/", productsHandler.ListProducts)
+	productsAPI.GET("/:id", productsHandler.FindProductByID)
+	productsAPI.GET("/sku/:sku", productsHandler.FindProductBySKU)
 }

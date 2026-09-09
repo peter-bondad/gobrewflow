@@ -6,6 +6,7 @@ import (
 	"gobrewflow/internal/services/auth"
 	"gobrewflow/internal/services/categories"
 	"gobrewflow/internal/services/invitations"
+	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
 
 	"github.com/uptrace/bun"
@@ -29,6 +30,8 @@ type Container struct {
 	TokenBlacklistRepo auth.TokenBlacklistRepository
 
 	CategoriesHandler categories.CategoryHandler
+
+	ProductsHandler products.ProductHandler
 }
 
 func NewContainer(db *bun.DB, cfg *config.Config) *Container {
@@ -60,6 +63,9 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	categoriesService := categories.NewCategoryService(categoriesRepo)
 	categoriesHandler := categories.NewCategoryHandler(categoriesService)
 
+	productsRepo := products.NewProductRepository(db)
+	productService := products.NewProductService(productsRepo, categoriesRepo)
+	productsHandler := products.NewProductHandler(productService)
 	return &Container{
 		InvitationRepo:    invitationRepo,
 		InvitationService: invitationService,
@@ -74,5 +80,6 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 
 		TokenBlacklistRepo: tokenBlacklistRepo,
 		CategoriesHandler:  categoriesHandler,
+		ProductsHandler:    productsHandler,
 	}
 }
