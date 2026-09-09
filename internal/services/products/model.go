@@ -10,8 +10,9 @@ import (
 type Product struct {
 	bun.BaseModel `bun:"table:products,alias:p"`
 	ID            uuid.UUID `bun:",pk"`
-	SKU           string    `bun:"sku,notnull,unique"`
+	SKU           *string   `bun:"sku,notnull,unique"`
 	Name          string    `bun:"name,notnull"`
+	Slug          string    `bun:"slug"`
 	Description   *string   `bun:"description"`
 	Price         int64     `bun:"price,notnull,default:0"` // or use decimal type
 	StockQuantity int       `bun:"stock_quantity,notnull,default:0"`

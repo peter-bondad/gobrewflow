@@ -10,16 +10,17 @@ import (
 
 type ProductRepositoryInterface interface {
 	InsertProduct(ctx context.Context, product *Product) error
-	FindByID(ctx context.Context, id string) (*Product, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*Product, error)
 	FindBySKU(ctx context.Context, sku string) (*Product, error)
+	ExistsByName(ctx context.Context, name string) (bool, error)
 	ListProducts(ctx context.Context, params ProductListParams) (*ProductListResult, error)
 }
 
 type productRepository struct {
-	db bun.DB
+	db *bun.DB
 }
 
-func NewProductRepository(db bun.DB) ProductRepositoryInterface {
+func NewProductRepository(db *bun.DB) ProductRepositoryInterface {
 	return &productRepository{
 		db: db,
 	}
@@ -31,11 +32,12 @@ func (r *productRepository) InsertProduct(ctx context.Context, product *Product)
 	return err
 }
 
-func (r *productRepository) FindByID(ctx context.Context, id string) (*Product, error) {
+func (r *productRepository) FindByID(ctx context.Context, id uuid.UUID) (*Product, error) {
 	product := new(Product)
 	err := r.db.NewSelect().Model(product).Where("id = ?", id).Scan(ctx)
 	if err != nil {
 		return nil, err
+
 	}
 	return product, nil
 }
@@ -47,6 +49,14 @@ func (r *productRepository) FindBySKU(ctx context.Context, sku string) (*Product
 		return nil, err
 	}
 	return product, nil
+}
+func (r *productRepository) ExistsByName(ctx context.Context, name string) (bool, error) {
+	exists, err := r.db.NewSelect().
+		Model((*Product)(nil)).
+		Where("name = ?", name).
+		Exists(ctx)
+
+	return exists, err
 }
 
 type ProductListParams struct {
