@@ -3,6 +3,8 @@ package products
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/uptrace/bun"
 )
 
@@ -24,6 +26,7 @@ func NewProductRepository(db bun.DB) ProductRepositoryInterface {
 }
 
 func (r *productRepository) InsertProduct(ctx context.Context, product *Product) error {
+	product.ID = uuid.New()
 	_, err := r.db.NewInsert().Model(product).Exec(ctx)
 	return err
 }
