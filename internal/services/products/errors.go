@@ -10,4 +10,6 @@ var (
 	ProductSKUIsRequired        = errors.New("product sku is required")
 	ErrProductNotFound          = errors.New("product not found")
 	ProductCategoryIDIsRequired = errors.New("product category id is required")
+	InvalidLimitParameter       = errors.New("invalid limit parameter")
+	InvalidPageParameter        = errors.New("invalid page parameter")
 )

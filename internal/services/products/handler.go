@@ -39,16 +39,12 @@ func (h *productHandler) CreateProduct(c *gin.Context) {
 	}
 
 	if req.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Product name is required",
-		})
+		c.Error(ProductNameIsRequired)
 		return
 	}
 
 	if req.CategoryID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Category ID is required",
-		})
+		c.Error(ProductCategoryIDIsRequired)
 		return
 	}
 
@@ -70,7 +66,7 @@ func (h *productHandler) CreateProduct(c *gin.Context) {
 func (h *productHandler) FindProductByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-		c.JSON(400, gin.H{"error": "Product ID is required"})
+		c.Error(ProductIdIsRequired)
 		return
 	}
 
@@ -86,7 +82,7 @@ func (h *productHandler) FindProductByID(c *gin.Context) {
 func (h *productHandler) FindProductBySKU(c *gin.Context) {
 	sku := c.Param("sku")
 	if sku == "" {
-		c.JSON(400, gin.H{"error": "Product SKU is required"})
+		c.Error(ProductSKUIsRequired)
 		return
 	}
 
@@ -116,9 +112,7 @@ func (h *productHandler) ListProducts(c *gin.Context) {
 	var req ListProductsRequest
 
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid query parameters",
-		})
+		c.Error(err)
 		return
 	}
 
@@ -127,9 +121,7 @@ func (h *productHandler) ListProducts(c *gin.Context) {
 	}
 
 	if req.Limit < 1 || req.Limit > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid limit parameter",
-		})
+		c.Error(InvalidLimitParameter)
 		return
 	}
 
@@ -138,9 +130,7 @@ func (h *productHandler) ListProducts(c *gin.Context) {
 	}
 
 	if req.Page < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid page parameter",
-		})
+		c.Error(InvalidPageParameter)
 		return
 	}
 
@@ -151,19 +141,19 @@ func (h *productHandler) ListProducts(c *gin.Context) {
 		Page:     req.Page,
 	}
 
-	products, err := h.service.ListProducts(c.Request.Context(), input)
+	productsData, err := h.service.ListProducts(c.Request.Context(), input)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list products"})
+		c.Error(err)
 		return
 	}
 
 	resp := ListProductsResponse{
-		Data: products.Data,
+		Data: productsData.Data,
 		Pagination: shared.Pagination{
-			Page:       products.Page,
-			Limit:      products.Limit,
-			Total:      products.Total,
-			TotalPages: products.TotalPages,
+			Page:       productsData.Page,
+			Limit:      productsData.Limit,
+			Total:      productsData.Total,
+			TotalPages: productsData.TotalPages,
 		},
 	}
 

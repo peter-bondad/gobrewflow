@@ -1,7 +1,7 @@
 package invitations
 
 import (
-	"gobrewflow/internal/middleware"
+	"gobrewflow/shared"
 	"net/http"
 	"time"
 
@@ -41,12 +41,12 @@ type SendInvitationRequest struct {
 
 func (h *invitationHandler) SendInvitation(c *gin.Context) {
 	var input SendInvitationRequest
-	if err := c.BindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.Error(err)
 		return
 	}
 
-	requesterID, exists := c.Get(middleware.UserIDKey)
+	requesterID, exists := c.Get(shared.UserIDKey)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -63,16 +63,7 @@ func (h *invitationHandler) SendInvitation(c *gin.Context) {
 		InviterID: requesterUUID,
 	})
 	if err != nil {
-		switch err {
-		case ErrForbidden:
-			c.JSON(http.StatusForbidden, gin.H{"error": "you do not have permission to send invitations"})
-		case ErrInvitationAlreadySent:
-			c.JSON(http.StatusConflict, gin.H{"error": "invitation already sent to this email"})
-		case ErrInvitationLimitReached:
-			c.JSON(http.StatusTooManyRequests, gin.H{"error": "invitation limit reached"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to send invitation"})
-		}
+		c.Error(err)
 		return
 	}
 
@@ -98,25 +89,14 @@ type AcceptInvitationResponse struct {
 
 func (h *invitationHandler) AcceptInvitation(c *gin.Context) {
 	var input AcceptInvitationRequest
-	if err := c.BindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.Error(err)
 		return
 	}
 
 	invitation, err := h.service.AcceptInvitation(c.Request.Context(), input.InvitationToken)
 	if err != nil {
-		switch err {
-		case ErrInvitationNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found"})
-		case ErrInvitationNotPending:
-			c.JSON(http.StatusConflict, gin.H{"error": "invitation is not pending"})
-		case ErrInvitationExpired:
-			c.JSON(http.StatusGone, gin.H{"error": "invitation has expired"})
-		case ErrInvitationAlreadyAccepted:
-			c.JSON(http.StatusConflict, gin.H{"error": "invitation already accepted"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to accept invitation"})
-		}
+		c.Error(err)
 		return
 	}
 
@@ -149,16 +129,12 @@ func (h *invitationHandler) SetPassword(c *gin.Context) {
 	var req SetPasswordRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+		c.Error(err)
 		return
 	}
 
 	if req.Password != req.ConfirmPassword {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "passwords do not match",
-		})
+		c.Error(ErrPasswordMismatch)
 		return
 	}
 
@@ -174,20 +150,7 @@ func (h *invitationHandler) SetPassword(c *gin.Context) {
 		input,
 	)
 	if err != nil {
-		switch err {
-		case ErrSetupTokenInvalid:
-			c.JSON(http.StatusNotFound, gin.H{"error": "setup token is invalid"})
-		case ErrInvitationNotAccepted:
-			c.JSON(http.StatusConflict, gin.H{"error": "invitation is not accepted"})
-		case ErrSetupTokenExpired:
-			c.JSON(http.StatusGone, gin.H{"error": "setup token has expired"})
-		case ErrPasswordMismatch:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "passwords do not match"})
-		case ErrEmailAlreadyExists:
-			c.JSON(http.StatusConflict, gin.H{"error": "email already exists"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to set password"})
-		}
+		c.Error(err)
 		return
 	}
 
@@ -217,16 +180,7 @@ func (h *invitationHandler) CancelInvitation(c *gin.Context) {
 
 	requesterUUID := requesterID.(uuid.UUID)
 	if err := h.service.CancelInvitation(c.Request.Context(), id, requesterUUID); err != nil {
-		switch err {
-		case ErrInvitationNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found"})
-		case ErrForbidden:
-			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-		case ErrInvitationNotPending:
-			c.JSON(http.StatusConflict, gin.H{"error": "invitation is not pending"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cancel invitation"})
-		}
+		c.Error(err)
 		return
 	}
 
@@ -250,14 +204,7 @@ func (h *invitationHandler) GetInvitation(c *gin.Context) {
 	requesterUUID := requesterID.(uuid.UUID)
 	invitation, err := h.service.GetInvitation(c.Request.Context(), id, requesterUUID)
 	if err != nil {
-		switch err {
-		case ErrInvitationNotFound:
-			c.JSON(http.StatusNotFound, gin.H{"error": "invitation not found"})
-		case ErrForbidden:
-			c.JSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get invitation"})
-		}
+		c.Error(err)
 		return
 	}
 
@@ -279,14 +226,14 @@ func (h *invitationHandler) ListInvitations(c *gin.Context) {
 	}
 
 	inviterID := requesterID.(uuid.UUID)
-	invitations, err := h.service.ListInvitations(c.Request.Context(), inviterID)
+	invitationsData, err := h.service.ListInvitations(c.Request.Context(), inviterID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list invitations"})
+		c.Error(err)
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"invitations": invitations,
-		"count":       len(invitations),
+		"invitations": invitationsData,
+		"count":       len(invitationsData),
 	})
 }

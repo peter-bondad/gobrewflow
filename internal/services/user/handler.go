@@ -122,16 +122,7 @@ func (h *userHandler) ListUsers(c *gin.Context) {
 		input,
 	)
 	if err != nil {
-		switch err {
-		case ErrInvalidUserRole:
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "invalid user role",
-			})
-		default:
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "failed to list users",
-			})
-		}
+		c.Error(err)
 		return
 	}
 

@@ -33,13 +33,13 @@ type CreateCategoryRequest struct {
 func (h *categoryHandler) CreateCategory(c *gin.Context) {
 	var input CreateCategoryRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request body"})
+		c.Error(err)
 		return
 	}
 
 	err := h.service.CreateCategory(c.Request.Context(), input.Name)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create category"})
+		c.Error(err)
 		return
 	}
 
@@ -59,20 +59,20 @@ type UpdateCategoryNameResponse struct {
 func (h *categoryHandler) UpdateCategoryName(c *gin.Context) {
 	var input UpdateCategoryNameRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request body"})
+		c.Error(err)
 		return
 	}
 
 	id := c.Param("id")
 	categoryID, err := uuid.Parse(id)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid category ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
 		return
 	}
 
 	success, err := h.service.UpdateCategoryName(c.Request.Context(), categoryID, input.Name)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to update category name"})
+		c.Error(err)
 		return
 	}
 
@@ -96,9 +96,7 @@ func (h *categoryHandler) ListCategories(c *gin.Context) {
 	var req CategoryListRequest
 
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid query parameters",
-		})
+		c.Error(err)
 		return
 	}
 
@@ -107,9 +105,7 @@ func (h *categoryHandler) ListCategories(c *gin.Context) {
 	}
 
 	if req.Limit < 1 || req.Limit > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid limit parameter",
-		})
+		c.Error(InvalidLimitParameter)
 		return
 	}
 
@@ -118,9 +114,7 @@ func (h *categoryHandler) ListCategories(c *gin.Context) {
 	}
 
 	if req.Page < 1 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid page parameter",
-		})
+		c.Error(InvalidPageParameter)
 		return
 	}
 
@@ -130,23 +124,21 @@ func (h *categoryHandler) ListCategories(c *gin.Context) {
 		Page:  req.Page,
 	}
 
-	categories, err := h.service.ListCategories(
+	categoriesData, err := h.service.ListCategories(
 		c.Request.Context(),
 		input,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to list categories",
-		})
+		c.Error(err)
 		return
 	}
 	resp := CategoryListResponse{
-		Data: categories.Data,
+		Data: categoriesData.Data,
 		Pagination: shared.Pagination{
-			Page:       categories.Page,
-			Limit:      categories.Limit,
-			Total:      categories.Total,
-			TotalPages: categories.TotalPages,
+			Page:       categoriesData.Page,
+			Limit:      categoriesData.Limit,
+			Total:      categoriesData.Total,
+			TotalPages: categoriesData.TotalPages,
 		},
 	}
 
@@ -164,12 +156,12 @@ func (h *categoryHandler) SetCategoryStatus(c *gin.Context) {
 	var param SetCategoryStatusParam
 	var input SetCategoryStatusRequest
 	if err := c.ShouldBindUri(&param); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID"})
+		c.Error(err)
 		return
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.Error(err)
 		return
 	}
 
@@ -181,7 +173,7 @@ func (h *categoryHandler) SetCategoryStatus(c *gin.Context) {
 
 	success, err := h.service.SetCategoryStatus(c.Request.Context(), categoryID, input.IsActive)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to set category status"})
+		c.Error(err)
 		return
 	}
 
