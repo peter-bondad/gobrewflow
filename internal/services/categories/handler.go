@@ -37,7 +37,7 @@ func (h *categoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	_, err := h.service.CreateCategory(c.Request.Context(), input.Name)
+	err := h.service.CreateCategory(c.Request.Context(), input.Name)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to create category"})
 		return
