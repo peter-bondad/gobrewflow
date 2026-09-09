@@ -8,8 +8,9 @@ import (
 )
 
 type CategoryRepositoryInterface interface {
-	CreateCategory(ctx context.Context, category *Category) error
+	InsertCategory(ctx context.Context, category *Category) error
 	FindCategoryByID(ctx context.Context, id uuid.UUID) (*Category, error)
+	ExistsByName(ctx context.Context, name string) (bool, error)
 	UpdateCategory(ctx context.Context, category *Category) error
 	ListCategories(ctx context.Context, params CategoryListParams) (CategoryListResult, error)
 }
@@ -24,7 +25,7 @@ func NewCategoryRepository(db *bun.DB) CategoryRepositoryInterface {
 	}
 }
 
-func (r *categoryRepository) CreateCategory(
+func (r *categoryRepository) InsertCategory(
 	ctx context.Context,
 	category *Category,
 ) error {
@@ -44,6 +45,14 @@ func (r *categoryRepository) FindCategoryByID(ctx context.Context, id uuid.UUID)
 	return category, nil
 }
 
+func (r *categoryRepository) ExistsByName(ctx context.Context, name string) (bool, error) {
+	exists, err := r.db.NewSelect().
+		Model((*Category)(nil)).
+		Where("name = ?", name).
+		Exists(ctx)
+
+	return exists, err
+}
 func (r *categoryRepository) UpdateCategory(ctx context.Context, category *Category) error {
 	_, err := r.db.NewUpdate().Model(category).Where("id = ?", category.ID).Exec(ctx)
 	return err
