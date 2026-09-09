@@ -1,7 +1,10 @@
 package categories
 
-const (
-	ErrCategoryNotFound      = "category not found"
-	ErrCategoryAlreadyExists = "category already exists"
-	ErrCategoryNotActive     = "category is not active"
+import "errors"
+
+var (
+	CategoryNameAlreadyExists = errors.New("category already exists")
+	ErrCategoryNotFound       = errors.New("category not found")
+	ErrCategoryAlreadyExists  = errors.New("category already exists")
+	ErrCategoryNotActive      = errors.New("category is not active")
 )
