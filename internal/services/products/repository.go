@@ -54,6 +54,7 @@ type ProductListParams struct {
 	SKU      string
 	Category string
 	IsActive *bool
+	Page     int
 	Limit    int
 	Offset   int
 }
