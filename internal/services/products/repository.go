@@ -2,6 +2,8 @@ package products
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -14,6 +16,7 @@ type ProductRepositoryInterface interface {
 	FindBySKU(ctx context.Context, sku string) (*Product, error)
 	ExistsByName(ctx context.Context, name string) (bool, error)
 	ListProducts(ctx context.Context, params ProductListParams) (*ProductListResult, error)
+	UpdateProduct(ctx context.Context, params UpdateProductParams) (*Product, error)
 }
 
 type productRepository struct {
@@ -121,4 +124,55 @@ func (r *productRepository) ListProducts(ctx context.Context, params ProductList
 		Total: total,
 	}, nil
 
+}
+
+type UpdateProductParams struct {
+	ID          uuid.UUID
+	Name        *string
+	Description *string
+	Price       *int64
+	IsActive    *bool
+	CategoryID  *uuid.UUID
+}
+
+func (r *productRepository) UpdateProduct(ctx context.Context, params UpdateProductParams) (*Product, error) {
+	product := new(Product)
+
+	query := r.db.NewUpdate().
+		Model(product).
+		Where("id = ?", params.ID).
+		Set("updated_at = NOW()")
+
+	if params.Name != nil {
+		query.Set("name = ?", *params.Name)
+	}
+
+	if params.Description != nil {
+		query.Set("description = ?", *params.Description)
+	}
+
+	if params.Price != nil {
+		query.Set("price = ?", *params.Price)
+	}
+
+	if params.IsActive != nil {
+		query.Set("is_active = ?", *params.IsActive)
+	}
+
+	if params.CategoryID != nil {
+		query.Set("category_id = ?", *params.CategoryID)
+	}
+
+	err := query.
+		Returning("*").
+		Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrProductNotFound
+		}
+
+		return nil, err
+	}
+
+	return product, nil
 }
