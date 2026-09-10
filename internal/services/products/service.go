@@ -6,9 +6,12 @@ import (
 	"errors"
 	"gobrewflow/internal/services/categories"
 	"gobrewflow/internal/utils"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
-type ProductInput struct {
+type CreateProductInput struct {
 	Name       string
 	SKU        string
 	Slug       string
@@ -17,15 +20,16 @@ type ProductInput struct {
 
 type ProductOutput struct {
 	Name       string
-	SKU        *string
+	SKU        string
 	Slug       string
 	CategoryID string
 }
 type ProductServiceInterface interface {
-	CreateProduct(ctx context.Context, product *ProductInput) error
+	CreateProduct(ctx context.Context, product *CreateProductInput) error
 	FindByID(ctx context.Context, id string) (*ProductOutput, error)
 	FindBySKU(ctx context.Context, sku string) (*ProductOutput, error)
 	ListProducts(ctx context.Context, params ProductListInput) (ProductListOutput, error)
+	UpdateProduct(ctx context.Context, input UpdateProductInput) (*UpdateProductOutput, error)
 }
 
 type productService struct {
@@ -40,13 +44,23 @@ func NewProductService(productRepo ProductRepositoryInterface, categoryRepo cate
 	}
 }
 
-func (s *productService) CreateProduct(ctx context.Context, input *ProductInput) error {
-	if input.Name == "" {
-		return ProductNameIsRequired
-	}
+func validateCreateProductInput(input *CreateProductInput) error {
+	if input.Name != "" {
+		name := strings.TrimSpace(input.Name)
 
-	if input.CategoryID == "" {
-		return ProductCategoryIDIsRequired
+		if name == "" {
+			return ProductNameCannotBeEmpty
+		}
+
+		if len(name) > 255 {
+			return ProductNameTooLong
+		}
+	}
+	return nil
+}
+func (s *productService) CreateProduct(ctx context.Context, input *CreateProductInput) error {
+	if err := validateCreateProductInput(input); err != nil {
+		return err
 	}
 
 	categoryIDUUID, err := utils.ParseUUID(input.CategoryID)
@@ -177,4 +191,67 @@ func (s *productService) ListProducts(ctx context.Context, input ProductListInpu
 		Total:      result.Total,
 		TotalPages: totalPages,
 	}, nil
+}
+
+type UpdateProductInput struct {
+	ID          uuid.UUID
+	Name        *string
+	Description *string
+	Price       *int64
+	IsActive    *bool
+	CategoryID  *uuid.UUID
+}
+
+type UpdateProductOutput struct {
+	Product *Product
+}
+
+func (s *productService) UpdateProduct(ctx context.Context, input UpdateProductInput) (*UpdateProductOutput, error) {
+
+	if err := validateUpdateProductInput(input); err != nil {
+		return nil, err
+	}
+
+	product, err := s.productRepo.UpdateProduct(
+		ctx,
+		UpdateProductParams{
+			ID:          input.ID,
+			Name:        input.Name,
+			Description: input.Description,
+			Price:       input.Price,
+			IsActive:    input.IsActive,
+			CategoryID:  input.CategoryID,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UpdateProductOutput{
+		Product: product,
+	}, nil
+}
+
+func validateUpdateProductInput(input UpdateProductInput) error {
+	if input.ID == uuid.Nil {
+		return errors.New("product id is required")
+	}
+
+	if input.Name != nil {
+		name := strings.TrimSpace(*input.Name)
+
+		if name == "" {
+			return ProductNameCannotBeEmpty
+		}
+
+		if len(name) > 255 {
+			return ProductNameTooLong
+		}
+	}
+
+	if input.Price != nil && *input.Price < 0 {
+		return ProductPriceNotNegative
+	}
+
+	return nil
 }

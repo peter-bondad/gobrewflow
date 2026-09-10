@@ -39,16 +39,16 @@ func (h *productHandler) CreateProduct(c *gin.Context) {
 	}
 
 	if req.Name == "" {
-		c.Error(ProductNameIsRequired)
+		c.Error(ProductNameCannotBeEmpty)
 		return
 	}
 
 	if req.CategoryID == "" {
-		c.Error(ProductCategoryIDIsRequired)
+		c.Error(ProductCategoryIDCannotBeEmpty)
 		return
 	}
 
-	err := h.service.CreateProduct(c.Request.Context(), &ProductInput{
+	err := h.service.CreateProduct(c.Request.Context(), &CreateProductInput{
 		Name:       req.Name,
 		Slug:       req.Slug,
 		CategoryID: req.CategoryID,
