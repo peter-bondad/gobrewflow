@@ -1,9 +1,11 @@
 package invitations
 
 import (
-	"gobrewflow/shared"
+	"errors"
 	"net/http"
 	"time"
+
+	"gobrewflow/internal/services/auth"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -46,15 +48,13 @@ func (h *invitationHandler) SendInvitation(c *gin.Context) {
 		return
 	}
 
-	requesterID, exists := c.Get(shared.UserIDKey)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	requesterUUID, ok := requesterID.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+	requesterUUID, err := auth.GetUserID(c)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, auth.ErrUnauthorized) {
+			status = http.StatusUnauthorized
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -172,17 +172,13 @@ func (h *invitationHandler) CancelInvitation(c *gin.Context) {
 		return
 	}
 
-	requesterID, exists := c.Get(shared.UserIDKey)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	requesterUUID, ok := requesterID.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "invalid user id type",
-		})
+	requesterUUID, err := auth.GetUserID(c)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, auth.ErrUnauthorized) {
+			status = http.StatusUnauthorized
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 	if err := h.service.CancelInvitation(c.Request.Context(), id, requesterUUID); err != nil {
@@ -201,13 +197,15 @@ func (h *invitationHandler) GetInvitation(c *gin.Context) {
 		return
 	}
 
-	requesterID, exists := c.Get(shared.UserIDKey)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	requesterUUID, err := auth.GetUserID(c)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, auth.ErrUnauthorized) {
+			status = http.StatusUnauthorized
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
-
-	requesterUUID := requesterID.(uuid.UUID)
 	invitation, err := h.service.GetInvitation(c.Request.Context(), id, requesterUUID)
 	if err != nil {
 		c.Error(err)
@@ -225,15 +223,13 @@ func (h *invitationHandler) GetInvitation(c *gin.Context) {
 }
 
 func (h *invitationHandler) ListInvitations(c *gin.Context) {
-	requesterID, exists := c.Get(shared.UserIDKey)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	inviterID, ok := requesterID.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+	inviterID, err := auth.GetUserID(c)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, auth.ErrUnauthorized) {
+			status = http.StatusUnauthorized
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 	invitationsData, err := h.service.ListInvitations(c.Request.Context(), inviterID)
