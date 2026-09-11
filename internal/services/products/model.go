@@ -29,5 +29,4 @@ type ProductListItem struct {
 	Name          string
 	SKU           string
 	Price         int64
-	StockQuantity int
 }
