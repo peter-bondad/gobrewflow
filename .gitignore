@@ -49,3 +49,6 @@ tmp/
 
 # Docker
 docker-compose.override.yml
+
+# Kilo Code
+.kilo
