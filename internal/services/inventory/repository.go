@@ -12,6 +12,7 @@ import (
 type InventoryRepositoryInterface interface {
 	AddStock(ctx context.Context, params StockParams) (*Inventory, error)
 	RemoveStock(ctx context.Context, params StockParams) (*Inventory, error)
+	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
 }
 
 type inventoryRepository struct {
@@ -107,6 +108,46 @@ func (r *inventoryRepository) RemoveStock(ctx context.Context, params StockParam
 			// 1. inventory doesn't exist
 			// 2. not enough stock
 			return nil, ErrInsufficientStock
+		}
+
+		return nil, err
+	}
+
+	return inventory, nil
+}
+
+type ProductInventoryResult struct {
+	bun.BaseModel `bun:"table:inventory,alias:i"`
+	ID            uuid.UUID
+	ProductID     uuid.UUID
+	Quantity      int
+	ProductName   string
+	SKU           string
+	Price         int64
+}
+
+// query inventory with respective product
+func (r *inventoryRepository) FindByProductID(
+	ctx context.Context,
+	productID uuid.UUID,
+) (*ProductInventoryResult, error) {
+	inventory := new(ProductInventoryResult)
+
+	err := r.db.NewSelect().
+		Model(inventory).
+		Join("JOIN products AS p ON p.id = i.product_id").
+		ColumnExpr("i.id").
+		ColumnExpr("i.product_id").
+		ColumnExpr("i.quantity").
+		ColumnExpr("p.name AS product_name").
+		ColumnExpr("p.sku").
+		ColumnExpr("p.price").
+		Where("i.product_id = ?", productID).
+		Scan(ctx)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrInventoryNotFound
 		}
 
 		return nil, err
