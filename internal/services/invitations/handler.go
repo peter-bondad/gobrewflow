@@ -172,13 +172,19 @@ func (h *invitationHandler) CancelInvitation(c *gin.Context) {
 		return
 	}
 
-	requesterID, exists := c.Get("userID")
+	requesterID, exists := c.Get(shared.UserIDKey)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	requesterUUID := requesterID.(uuid.UUID)
+	requesterUUID, ok := requesterID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "invalid user id type",
+		})
+		return
+	}
 	if err := h.service.CancelInvitation(c.Request.Context(), id, requesterUUID); err != nil {
 		c.Error(err)
 		return
@@ -195,7 +201,7 @@ func (h *invitationHandler) GetInvitation(c *gin.Context) {
 		return
 	}
 
-	requesterID, exists := c.Get("userID")
+	requesterID, exists := c.Get(shared.UserIDKey)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
@@ -219,13 +225,17 @@ func (h *invitationHandler) GetInvitation(c *gin.Context) {
 }
 
 func (h *invitationHandler) ListInvitations(c *gin.Context) {
-	requesterID, exists := c.Get("userID")
+	requesterID, exists := c.Get(shared.UserIDKey)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	inviterID := requesterID.(uuid.UUID)
+	inviterID, ok := requesterID.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid user id type"})
+		return
+	}
 	invitationsData, err := h.service.ListInvitations(c.Request.Context(), inviterID)
 	if err != nil {
 		c.Error(err)
