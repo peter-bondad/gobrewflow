@@ -19,18 +19,13 @@ import (
 func main() {
 
 	// Load environment variables from .env file
-	err := godotenv.Load()
-	if err != nil {
-		panic(err)
-	}
+	_ = godotenv.Load()
 
-	// Initialize logger
 	log := logger.New("development", "debug")
 
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
-		log.Error("failed to load application configuration", "error", err)
+		log.Error("failed to load config", "error", err)
 		os.Exit(1)
 	}
 
