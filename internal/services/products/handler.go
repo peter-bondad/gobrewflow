@@ -15,10 +15,10 @@ type ProductHandler interface {
 }
 
 type productHandler struct {
-	service ProductServiceInterface
+	service ProductService
 }
 
-func NewProductHandler(service ProductServiceInterface) ProductHandler {
+func NewProductHandler(service ProductService) ProductHandler {
 	return &productHandler{
 		service: service,
 	}

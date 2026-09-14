@@ -5,6 +5,8 @@ import (
 	"gobrewflow/internal/services/account"
 	"gobrewflow/internal/services/auth"
 	"gobrewflow/internal/services/categories"
+	"gobrewflow/internal/services/inventory"
+	"gobrewflow/internal/services/inventory_movements"
 	"gobrewflow/internal/services/invitations"
 	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
@@ -32,6 +34,8 @@ type Container struct {
 	CategoriesHandler categories.CategoryHandler
 
 	ProductsHandler products.ProductHandler
+
+	InventoryHandler inventory.InventoryHandler
 }
 
 func NewContainer(db *bun.DB, cfg *config.Config) *Container {
@@ -66,6 +70,17 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	productsRepo := products.NewProductRepository(db)
 	productService := products.NewProductService(productsRepo, categoriesRepo)
 	productsHandler := products.NewProductHandler(productService)
+
+	inventoryRepo := inventory.NewInventoryRepository(db)
+	inventoryService := inventory.NewInventoryService(inventoryRepo, productsRepo)
+	inventoryHandler := inventory.NewInventoryHandler(inventoryService)
+
+	inventoryMovementsRepo := inventory_movements.NewInventoryMovementsRepository(db)
+	_ = inventory_movements.NewInventoryMovementsService(
+		inventoryMovementsRepo,
+		inventoryRepo,
+	)
+
 	return &Container{
 		InvitationRepo:    invitationRepo,
 		InvitationService: invitationService,
@@ -81,5 +96,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		TokenBlacklistRepo: tokenBlacklistRepo,
 		CategoriesHandler:  categoriesHandler,
 		ProductsHandler:    productsHandler,
+
+		InventoryHandler: inventoryHandler,
 	}
 }

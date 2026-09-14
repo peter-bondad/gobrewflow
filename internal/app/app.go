@@ -25,6 +25,7 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 		InvitationHandler:  container.InvitationHandler,
 		CategoriesHandler:  container.CategoriesHandler,
 		ProductsHandler:    container.ProductsHandler,
+		InventoryHandler:   container.InventoryHandler,
 		JwtService:         container.JwtService,
 		TokenBlacklistRepo: container.TokenBlacklistRepo,
 	})

@@ -24,7 +24,7 @@ type ProductOutput struct {
 	Slug       string
 	CategoryID string
 }
-type ProductServiceInterface interface {
+type ProductService interface {
 	CreateProduct(ctx context.Context, product *CreateProductInput) error
 	FindByID(ctx context.Context, id string) (*ProductOutput, error)
 	FindBySKU(ctx context.Context, sku string) (*ProductOutput, error)
@@ -33,11 +33,11 @@ type ProductServiceInterface interface {
 }
 
 type productService struct {
-	productRepo  ProductRepositoryInterface
-	categoryRepo categories.CategoryRepositoryInterface
+	productRepo  ProductRepository
+	categoryRepo categories.CategoryRepository
 }
 
-func NewProductService(productRepo ProductRepositoryInterface, categoryRepo categories.CategoryRepositoryInterface) ProductServiceInterface {
+func NewProductService(productRepo ProductRepository, categoryRepo categories.CategoryRepository) ProductService {
 	return &productService{
 		productRepo:  productRepo,
 		categoryRepo: categoryRepo,

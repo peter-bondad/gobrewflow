@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type CategoryServiceInterface interface {
+type CategoryService interface {
 	CreateCategory(ctx context.Context, name string) error
 	UpdateCategoryName(ctx context.Context, id uuid.UUID, name string) (bool, error)
 	ListCategories(ctx context.Context, input CategoryListInput) (CategoryListOutput, error)
@@ -14,10 +14,10 @@ type CategoryServiceInterface interface {
 }
 
 type categoryService struct {
-	repo CategoryRepositoryInterface
+	repo CategoryRepository
 }
 
-func NewCategoryService(repo CategoryRepositoryInterface) CategoryServiceInterface {
+func NewCategoryService(repo CategoryRepository) CategoryService {
 	return &categoryService{
 		repo: repo,
 	}

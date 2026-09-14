@@ -12,10 +12,10 @@ type InventoryHandler interface {
 }
 
 type inventoryHandler struct {
-	service InventoryServiceInterface
+	service InventoryService
 }
 
-func NewInventoryHandler(inventoryService inventoryService) InventoryHandler {
+func NewInventoryHandler(inventoryService InventoryService) InventoryHandler {
 	return &inventoryHandler{
 		service: inventoryService,
 	}

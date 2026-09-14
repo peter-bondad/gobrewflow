@@ -7,7 +7,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type CategoryRepositoryInterface interface {
+type CategoryRepository interface {
 	InsertCategory(ctx context.Context, category *Category) error
 	FindCategoryByID(ctx context.Context, id uuid.UUID) (*Category, error)
 	ExistsByName(ctx context.Context, name string) (bool, error)
@@ -19,7 +19,7 @@ type categoryRepository struct {
 	db *bun.DB
 }
 
-func NewCategoryRepository(db *bun.DB) CategoryRepositoryInterface {
+func NewCategoryRepository(db *bun.DB) CategoryRepository {
 	return &categoryRepository{
 		db: db,
 	}

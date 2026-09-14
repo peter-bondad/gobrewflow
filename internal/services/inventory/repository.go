@@ -9,7 +9,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type InventoryRepositoryInterface interface {
+type InventoryRepository interface {
 	AddStock(ctx context.Context, params StockParams) (*Inventory, error)
 	RemoveStock(ctx context.Context, params StockParams) (*Inventory, error)
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
@@ -19,7 +19,7 @@ type inventoryRepository struct {
 	db bun.IDB
 }
 
-func NewInventoryRepository(db bun.IDB) InventoryRepositoryInterface {
+func NewInventoryRepository(db bun.IDB) InventoryRepository {
 	return &inventoryRepository{
 		db: db,
 	}

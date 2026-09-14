@@ -10,7 +10,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type ProductRepositoryInterface interface {
+type ProductRepository interface {
 	InsertProduct(ctx context.Context, product *Product) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Product, error)
 	FindBySKU(ctx context.Context, sku string) (*Product, error)
@@ -23,7 +23,7 @@ type productRepository struct {
 	db *bun.DB
 }
 
-func NewProductRepository(db *bun.DB) ProductRepositoryInterface {
+func NewProductRepository(db *bun.DB) ProductRepository {
 	return &productRepository{
 		db: db,
 	}

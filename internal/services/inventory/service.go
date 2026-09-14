@@ -9,16 +9,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type InventoryServiceInterface interface {
+type InventoryService interface {
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryOutput, error)
 }
 
 type inventoryService struct {
-	inventoryRepo InventoryRepositoryInterface
-	productRepo   products.ProductRepositoryInterface
+	inventoryRepo InventoryRepository
+	productRepo   products.ProductRepository
 }
 
-func NewInventoryService(inventoryRepo InventoryRepositoryInterface, productRepo products.ProductRepositoryInterface) InventoryServiceInterface {
+func NewInventoryService(inventoryRepo InventoryRepository, productRepo products.ProductRepository) InventoryService {
 	return &inventoryService{
 		inventoryRepo: inventoryRepo,
 		productRepo:   productRepo,

@@ -17,10 +17,10 @@ type CategoryHandler interface {
 }
 
 type categoryHandler struct {
-	service CategoryServiceInterface
+	service CategoryService
 }
 
-func NewCategoryHandler(service CategoryServiceInterface) CategoryHandler {
+func NewCategoryHandler(service CategoryService) CategoryHandler {
 	return &categoryHandler{
 		service: service,
 	}

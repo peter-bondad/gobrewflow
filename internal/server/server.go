@@ -6,6 +6,7 @@ import (
 	"gobrewflow/internal/middleware"
 	"gobrewflow/internal/services/auth"
 	"gobrewflow/internal/services/categories"
+	"gobrewflow/internal/services/inventory"
 	"gobrewflow/internal/services/invitations"
 	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
@@ -30,6 +31,7 @@ type Dependencies struct {
 	InvitationHandler  invitations.InvitationHandler
 	CategoriesHandler  categories.CategoryHandler
 	ProductsHandler    products.ProductHandler
+	InventoryHandler   inventory.InventoryHandler
 	JwtService         *auth.JWTService
 	TokenBlacklistRepo auth.TokenBlacklistRepository
 }
@@ -55,7 +57,7 @@ func New(cfg *config.Config, log *slog.Logger, deps Dependencies) (*Server, erro
 
 	s.routes()
 	s.publicRoutes(deps.UserHandler, deps.InvitationHandler)
-	s.protectedRoutes(authMiddleware, deps.UserRepo, deps.UserHandler, deps.InvitationHandler, deps.CategoriesHandler, deps.ProductsHandler)
+	s.protectedRoutes(authMiddleware, deps.UserRepo, deps.UserHandler, deps.InvitationHandler, deps.CategoriesHandler, deps.ProductsHandler, deps.InventoryHandler)
 
 	return s, nil
 }
