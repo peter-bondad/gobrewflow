@@ -42,6 +42,16 @@ tasks:
     cmds:
       - migrate -path ./db/migrations -database "{{.DATABASE_URL}}" force {{.VERSION}}
 
+  service-create:
+    desc: "Creates a new service folder with the standard Go files and package declarations."
+    cmds:
+      - mkdir -p ./internal/services/{{.NAME}}
+      - printf 'package {{.NAME}}\n' > ./internal/services/{{.NAME}}/model.go
+      - printf 'package {{.NAME}}\n' > ./internal/services/{{.NAME}}/repository.go
+      - printf 'package {{.NAME}}\n' > ./internal/services/{{.NAME}}/service.go
+      - printf 'package {{.NAME}}\n' > ./internal/services/{{.NAME}}/handler.go
+      - printf 'package {{.NAME}}\n' > ./internal/services/{{.NAME}}/errors.go
+
   docker-up:
     desc: Start Docker Compose services
     cmds:
