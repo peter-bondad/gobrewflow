@@ -16,10 +16,10 @@ type InventoryMovementsRepository interface {
 }
 
 type inventoryMovementsRepository struct {
-	db *bun.DB
+	db bun.IDB
 }
 
-func NewInventoryMovementsRepository(db *bun.DB) InventoryMovementsRepository {
+func NewInventoryMovementsRepository(db bun.IDB) InventoryMovementsRepository {
 	return &inventoryMovementsRepository{
 		db: db,
 	}

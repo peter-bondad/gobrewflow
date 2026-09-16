@@ -9,10 +9,11 @@ import (
 	"gobrewflow/shared"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 )
 
 type InventoryMovementsService interface {
-	CreateMovement(ctx context.Context, input CreateMovementInput) (*InventoryMovementOutput, error)
+	CreateMovement(ctx context.Context, input CreateMovementInput, db bun.IDB) (*InventoryMovementOutput, error)
 	ListMovements(ctx context.Context, input ListMovementsInput) (ListMovementsOutput, error)
 }
 
@@ -42,7 +43,7 @@ type InventoryMovementOutput struct {
 	CreatedAt time.Time
 }
 
-func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input CreateMovementInput) (*InventoryMovementOutput, error) {
+func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input CreateMovementInput, db bun.IDB) (*InventoryMovementOutput, error) {
 	if input.Quantity <= 0 {
 		return nil, ErrInvalidQuantity
 	}
