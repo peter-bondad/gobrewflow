@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"gobrewflow/internal/services/inventory"
-	"gobrewflow/internal/services/inventory_movements"
 	"gobrewflow/internal/services/order_items"
 	"gobrewflow/internal/services/products"
 
@@ -25,7 +24,6 @@ type ordersService struct {
 
 func NewOrderService(ordersRepo OrderRepository,
 	productsRepo products.ProductRepository,
-	inventoryMovementService inventory_movements.InventoryMovementsService,
 	orderItemsService order_items.OrderItemsService) OrdersService {
 	return &ordersService{
 		ordersRepo:        ordersRepo,
