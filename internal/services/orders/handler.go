@@ -33,8 +33,6 @@ type CreateOrderItemRequest struct {
 }
 
 func (h *ordersHandler) CreateOrder(c *gin.Context) {
-	ctx := c.Request.Context()
-
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -66,7 +64,7 @@ func (h *ordersHandler) CreateOrder(c *gin.Context) {
 		Items:     items,
 	}
 
-	order, err := h.service.CreateOrder(ctx, input)
+	order, err := h.service.CreateOrder(c, input)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
