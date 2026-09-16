@@ -11,10 +11,10 @@ type OrderItemRepository interface {
 }
 
 type orderItemRepository struct {
-	db *bun.DB
+	db bun.IDB
 }
 
-func NewOrderItemRepository(db *bun.DB) OrderItemRepository {
+func NewOrderItemRepository(db bun.IDB) OrderItemRepository {
 	return &orderItemRepository{db: db}
 }
 
