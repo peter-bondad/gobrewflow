@@ -14,4 +14,6 @@ var (
 	ProductCategoryIDCannotBeEmpty = errors.New("product category cannot be empty")
 	InvalidLimitParameter          = errors.New("invalid limit parameter")
 	InvalidPageParameter           = errors.New("invalid page parameter")
+	ErrInvalidProductID            = errors.New("invalid product id")
+	ErrInvalidUnitPrice            = errors.New("invalid unit price")
 )
