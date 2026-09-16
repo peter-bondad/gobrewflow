@@ -8,6 +8,8 @@ import (
 	"gobrewflow/internal/services/inventory"
 	"gobrewflow/internal/services/inventory_movements"
 	"gobrewflow/internal/services/invitations"
+	"gobrewflow/internal/services/order_items"
+	"gobrewflow/internal/services/orders"
 	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
 
@@ -38,6 +40,16 @@ type Container struct {
 	InventoryHandler inventory.InventoryHandler
 
 	InventoryMovementsService inventory_movements.InventoryMovementsService
+
+	OrdersHandler orders.OrdersHandler
+
+	OrdersService orders.OrdersService
+
+	OrdersRepo orders.OrderRepository
+
+	OrderItemsService order_items.OrderItemsService
+
+	OrderItemsRepo order_items.OrderItemRepository
 }
 
 func NewContainer(db *bun.DB, cfg *config.Config) *Container {
@@ -83,6 +95,13 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		inventoryRepo,
 	)
 
+	orderItemsRepo := order_items.NewOrderItemRepository(db)
+	orderItemsService := order_items.NewOrderItemsService(orderItemsRepo)
+
+	ordersRepo := orders.NewOrderItemRepository(db)
+	ordersService := orders.NewOrderService(ordersRepo, productsRepo, orderItemsService)
+	ordersHandler := orders.NewOrdesHandler(ordersService)
+
 	return &Container{
 		InvitationRepo:    invitationRepo,
 		InvitationService: invitationService,
@@ -101,5 +120,12 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 
 		InventoryHandler:          inventoryHandler,
 		InventoryMovementsService: inventoryMovementService,
+
+		OrdersHandler:    ordersHandler,
+		OrdersService:    ordersService,
+		OrdersRepo:       ordersRepo,
+
+		OrderItemsService: orderItemsService,
+		OrderItemsRepo:    orderItemsRepo,
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"gobrewflow/internal/services/categories"
 	"gobrewflow/internal/services/inventory"
 	"gobrewflow/internal/services/invitations"
+	"gobrewflow/internal/services/orders"
 	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
 	"net/http"
@@ -40,6 +41,7 @@ func (s *Server) protectedRoutes(
 	categoriesHandler categories.CategoryHandler,
 	productsHandler products.ProductHandler,
 	inventoryHandler inventory.InventoryHandler,
+	ordersHandler orders.OrdersHandler,
 ) {
 	protectedAPI := s.Server.Group("/api/protected")
 
@@ -50,6 +52,7 @@ func (s *Server) protectedRoutes(
 	categoriesAPI := protectedAPI.Group("/categories")
 	productsAPI := protectedAPI.Group("/products")
 	inventoryAPI := protectedAPI.Group("/inventory")
+	ordersAPI := protectedAPI.Group("/orders")
 	invitationAPI.Use(
 		middleware.RequireRoles(
 			userRepo,
@@ -74,4 +77,6 @@ func (s *Server) protectedRoutes(
 	productsAPI.GET("/sku/:sku", productsHandler.FindProductBySKU)
 
 	inventoryAPI.GET("/:id", inventoryHandler.FindByProductID)
+
+	ordersAPI.POST("/", ordersHandler.CreateOrder)
 }
