@@ -10,7 +10,7 @@ import (
 )
 
 type InventoryMovementsRepository interface {
-	CreateMovement(ctx context.Context, movement *InventoryMovement) error
+	CreateMovement(ctx context.Context, db bun.IDB, movement *InventoryMovement) error
 	ListMovements(ctx context.Context, params ListMovementsParams) ([]InventoryMovement, error)
 	CountMovements(ctx context.Context, params ListMovementsParams) (int, error)
 }
@@ -25,8 +25,8 @@ func NewInventoryMovementsRepository(db bun.IDB) InventoryMovementsRepository {
 	}
 }
 
-func (r *inventoryMovementsRepository) CreateMovement(ctx context.Context, movement *InventoryMovement) error {
-	_, err := r.db.NewInsert().Model(movement).Exec(ctx)
+func (r *inventoryMovementsRepository) CreateMovement(ctx context.Context, db bun.IDB, movement *InventoryMovement) error {
+	_, err := db.NewInsert().Model(movement).Exec(ctx)
 	return err
 }
 

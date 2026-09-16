@@ -7,10 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 )
 
 type OrderItemsService interface {
-	CreateOrderItems(ctx context.Context, input *CreateOrderItemsInput) error
+	CreateOrderItems(ctx context.Context, db bun.IDB, input *CreateOrderItemsInput) error
 }
 
 type orderItemsService struct {
@@ -35,9 +36,10 @@ type OrderProductItem struct {
 	Total     int64
 }
 
-func (s *orderItemsService) CreateOrderItems(ctx context.Context, input *CreateOrderItemsInput) error {
+func (s *orderItemsService) CreateOrderItems(ctx context.Context, db bun.IDB, input *CreateOrderItemsInput) error {
+
 	for _, item := range input.Items {
-		if err := validateCreateOrderInput(item.ProductID, item.Quantity, item.UnitPrice); err != nil {
+		if err := validateCreateOrderInput(item.ProductID, input.OrderID, item.Quantity, item.UnitPrice); err != nil {
 			return err
 		}
 
@@ -51,7 +53,7 @@ func (s *orderItemsService) CreateOrderItems(ctx context.Context, input *CreateO
 			CreatedAt: time.Now(),
 		}
 
-		if err := s.orderItemRepository.InsertOrderItem(ctx, orderItem); err != nil {
+		if err := s.orderItemRepository.InsertOrderItem(ctx, db, orderItem); err != nil {
 			return err
 		}
 	}
@@ -61,12 +63,17 @@ func (s *orderItemsService) CreateOrderItems(ctx context.Context, input *CreateO
 
 func validateCreateOrderInput(
 	productID uuid.UUID,
+	orderID uuid.UUID,
 	quantity int,
 	unitPrice int64,
 ) error {
 
 	if productID == uuid.Nil {
 		return products.ErrInvalidProductID
+	}
+
+	if orderID == uuid.Nil {
+		return ErrInvalidOrderID
 	}
 
 	if quantity <= 0 {

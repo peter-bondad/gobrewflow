@@ -60,13 +60,13 @@ func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input Cr
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.movementsRepo.CreateMovement(ctx, movement); err != nil {
+	if err := s.movementsRepo.CreateMovement(ctx, db, movement); err != nil {
 		return nil, err
 	}
 
 	switch input.Type {
 	case InventoryMovementTypeReceived, InventoryMovementTypeReturned:
-		_, err := s.inventoryRepo.AddStock(ctx, inventory.StockParams{
+		_, err := s.inventoryRepo.AddStock(ctx, db, inventory.StockParams{
 			ProductID: input.ProductID,
 			Quantity:  input.Quantity,
 		})
@@ -74,7 +74,7 @@ func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input Cr
 			return nil, err
 		}
 	case InventoryMovementTypeSold, InventoryMovementTypeDamaged:
-		_, err := s.inventoryRepo.RemoveStock(ctx, inventory.StockParams{
+		_, err := s.inventoryRepo.RemoveStock(ctx, db, inventory.StockParams{
 			ProductID: input.ProductID,
 			Quantity:  input.Quantity,
 		})
@@ -88,7 +88,7 @@ func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input Cr
 			return nil, err
 		}
 	case InventoryMovementTypeAdjusted:
-		_, err := s.inventoryRepo.AddStock(ctx, inventory.StockParams{
+		_, err := s.inventoryRepo.AddStock(ctx, db, inventory.StockParams{
 			ProductID: input.ProductID,
 			Quantity:  input.Quantity,
 		})

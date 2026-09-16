@@ -18,9 +18,9 @@ const (
 type Orders struct {
 	bun.BaseModel `bun:"table:orders,alias:o"`
 
-	ID          uuid.UUID `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
-	OrderNumber string    `bun:"order_number,notnull,unique"`
-	Status      string    `bun:"status,notnull,default:'pending'"`
+	ID          uuid.UUID   `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
+	OrderNumber string      `bun:"order_number,notnull,unique"`
+	Status      OrderStatus `bun:"status,notnull,default:'pending'"`
 
 	Subtotal int64 `bun:"subtotal,notnull,default:0"`
 	Tax      int64 `bun:"tax,notnull,default:0"`

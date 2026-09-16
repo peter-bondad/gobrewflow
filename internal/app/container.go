@@ -36,6 +36,8 @@ type Container struct {
 	ProductsHandler products.ProductHandler
 
 	InventoryHandler inventory.InventoryHandler
+
+	InventoryMovementsService inventory_movements.InventoryMovementsService
 }
 
 func NewContainer(db *bun.DB, cfg *config.Config) *Container {
@@ -76,7 +78,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	inventoryHandler := inventory.NewInventoryHandler(inventoryService)
 
 	inventoryMovementsRepo := inventory_movements.NewInventoryMovementsRepository(db)
-	_ = inventory_movements.NewInventoryMovementsService(
+	inventoryMovementService := inventory_movements.NewInventoryMovementsService(
 		inventoryMovementsRepo,
 		inventoryRepo,
 	)
@@ -97,6 +99,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		CategoriesHandler:  categoriesHandler,
 		ProductsHandler:    productsHandler,
 
-		InventoryHandler: inventoryHandler,
+		InventoryHandler:          inventoryHandler,
+		InventoryMovementsService: inventoryMovementService,
 	}
 }

@@ -10,8 +10,8 @@ import (
 )
 
 type InventoryRepository interface {
-	AddStock(ctx context.Context, params StockParams) (*Inventory, error)
-	RemoveStock(ctx context.Context, params StockParams) (*Inventory, error)
+	AddStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error)
+	RemoveStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error)
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
 }
 
@@ -30,7 +30,7 @@ type StockParams struct {
 	Quantity  int
 }
 
-func (r *inventoryRepository) AddStock(ctx context.Context, params StockParams) (*Inventory, error) {
+func (r *inventoryRepository) AddStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error) {
 	if params.Quantity <= 0 {
 		return nil, ErrInvalidQuantity
 	}
@@ -38,7 +38,7 @@ func (r *inventoryRepository) AddStock(ctx context.Context, params StockParams) 
 	inventory := new(Inventory)
 
 	// Check first if the inventory exists
-	err := r.db.NewSelect().
+	err := db.NewSelect().
 		Model(inventory).
 		Where("product_id = ?", params.ProductID).
 		Scan(ctx)
@@ -51,7 +51,7 @@ func (r *inventoryRepository) AddStock(ctx context.Context, params StockParams) 
 		return nil, err
 	}
 
-	err = r.db.NewUpdate().
+	err = db.NewUpdate().
 		Model(inventory).
 		Where("product_id = ?", params.ProductID).
 		Set("quantity = quantity + ?", params.Quantity).
@@ -70,7 +70,7 @@ func (r *inventoryRepository) AddStock(ctx context.Context, params StockParams) 
 	return inventory, nil
 }
 
-func (r *inventoryRepository) RemoveStock(ctx context.Context, params StockParams) (*Inventory, error) {
+func (r *inventoryRepository) RemoveStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error) {
 	if params.Quantity <= 0 {
 		return nil, ErrInvalidQuantity
 	}
@@ -78,7 +78,7 @@ func (r *inventoryRepository) RemoveStock(ctx context.Context, params StockParam
 	inventory := new(Inventory)
 
 	// Check first if the inventory exists.
-	err := r.db.NewSelect().
+	err := db.NewSelect().
 		Model(inventory).
 		Where("product_id = ?", params.ProductID).
 		Scan(ctx)
@@ -93,7 +93,7 @@ func (r *inventoryRepository) RemoveStock(ctx context.Context, params StockParam
 
 	// if exists
 	// remove/decrease the quantity if the stored quantity is greater than the inputted quantity
-	err = r.db.NewUpdate().
+	err = db.NewUpdate().
 		Model(inventory).
 		Where("product_id = ?", params.ProductID).
 		Where("quantity >= ?", params.Quantity).

@@ -7,7 +7,7 @@ import (
 )
 
 type OrderItemRepository interface {
-	InsertOrderItem(ctx context.Context, item *OrderItem) error
+	InsertOrderItem(ctx context.Context, db bun.IDB, item *OrderItem) error
 }
 
 type orderItemRepository struct {
@@ -18,7 +18,7 @@ func NewOrderItemRepository(db bun.IDB) OrderItemRepository {
 	return &orderItemRepository{db: db}
 }
 
-func (r *orderItemRepository) InsertOrderItem(ctx context.Context, item *OrderItem) error {
-	_, err := r.db.NewInsert().Model(item).Exec(ctx)
+func (r *orderItemRepository) InsertOrderItem(ctx context.Context, db bun.IDB, item *OrderItem) error {
+	_, err := db.NewInsert().Model(item).Exec(ctx)
 	return err
 }
