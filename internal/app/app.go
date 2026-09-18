@@ -20,13 +20,13 @@ func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
 	container := NewContainer(db, cfg)
 
 	srv, err := server.New(cfg, log, server.Dependencies{
-		UserRepo:          container.UserRepo,
-		UserHandler:       container.UserHandler,
-		InvitationHandler: container.InvitationHandler,
-		CategoriesHandler: container.CategoriesHandler,
-		ProductsHandler:   container.ProductsHandler,
-		InventoryHandler:  container.InventoryHandler,
-
+		UserRepo:           container.UserRepo,
+		UserHandler:        container.UserHandler,
+		InvitationHandler:  container.InvitationHandler,
+		CategoriesHandler:  container.CategoriesHandler,
+		ProductsHandler:    container.ProductsHandler,
+		InventoryHandler:   container.InventoryHandler,
+		OrdersHandler:      container.OrdersHandler,
 		JwtService:         container.JwtService,
 		TokenBlacklistRepo: container.TokenBlacklistRepo,
 	})
