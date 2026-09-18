@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"gobrewflow/internal/database"
 	"gobrewflow/internal/services/inventory"
 	"gobrewflow/shared"
 
@@ -12,13 +13,14 @@ import (
 )
 
 type InventoryMovementsService interface {
-	CreateMovement(ctx context.Context, input CreateMovementInput, db bun.IDB) (*InventoryMovementOutput, error)
+	CreateMovement(ctx context.Context, input CreateMovementInput) (*InventoryMovementOutput, error)
 	ListMovements(ctx context.Context, input ListMovementsInput) (ListMovementsOutput, error)
 }
 
 type inventoryMovementsService struct {
 	movementsRepo InventoryMovementsRepository
 	inventoryRepo inventory.InventoryRepository
+	txManager     database.TxManager
 }
 
 func NewInventoryMovementsService(movementsRepo InventoryMovementsRepository, inventoryRepo inventory.InventoryRepository) InventoryMovementsService {
@@ -42,7 +44,10 @@ type InventoryMovementOutput struct {
 	CreatedAt time.Time
 }
 
-func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input CreateMovementInput, db bun.IDB) (*InventoryMovementOutput, error) {
+func (s *inventoryMovementsService) CreateMovement(
+	ctx context.Context,
+	input CreateMovementInput,
+) (*InventoryMovementOutput, error) {
 	if input.Quantity <= 0 {
 		return nil, ErrInvalidQuantity
 	}
@@ -59,29 +64,42 @@ func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input Cr
 		CreatedAt: time.Now(),
 	}
 
-	if err := s.movementsRepo.CreateMovement(ctx, db, movement); err != nil {
-		return nil, err
-	}
+	err := s.txManager.WithTx(ctx, func(tx bun.IDB) error {
+		switch input.Type {
+		case InventoryMovementTypeReceived,
+			InventoryMovementTypeReturned:
 
-	switch input.Type {
-	case InventoryMovementTypeReceived, InventoryMovementTypeReturned:
-		_, err := s.inventoryRepo.ChangeStock(ctx, db, inventory.StockParams{
-			ProductID: input.ProductID,
-			Quantity:  input.Quantity,
-			Change:    inventory.StockIncrease,
-		})
-		if err != nil {
-			return nil, err
+			_, err := s.inventoryRepo.ChangeStock(ctx, tx, inventory.StockParams{
+				ProductID: input.ProductID,
+				Quantity:  input.Quantity,
+				Change:    inventory.StockIncrease,
+			})
+			if err != nil {
+				return err
+			}
+
+		case InventoryMovementTypeSold,
+			InventoryMovementTypeDamaged:
+
+			_, err := s.inventoryRepo.ChangeStock(ctx, tx, inventory.StockParams{
+				ProductID: input.ProductID,
+				Quantity:  input.Quantity,
+				Change:    inventory.StockDecrease,
+			})
+			if err != nil {
+				return err
+			}
+
+		case InventoryMovementTypeAdjusted:
+			// Define adjustment behavior separately.
+			// Currenly planning
 		}
-	case InventoryMovementTypeSold, InventoryMovementTypeDamaged:
-		_, err := s.inventoryRepo.ChangeStock(ctx, db, inventory.StockParams{
-			ProductID: input.ProductID,
-			Quantity:  input.Quantity,
-			Change:    inventory.StockDecrease,
-		})
-		if err != nil {
-			return nil, err
-		}
+
+		return s.movementsRepo.CreateMovement(ctx, tx, movement)
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
 	return &InventoryMovementOutput{
