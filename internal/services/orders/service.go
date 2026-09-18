@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"gobrewflow/internal/database"
 	"gobrewflow/internal/services/inventory"
 	"gobrewflow/internal/services/order_items"
 	"gobrewflow/internal/services/products"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 )
 
 type OrdersService interface {
@@ -21,6 +23,7 @@ type ordersService struct {
 	productsRepo      products.ProductRepository
 	inventoryRepo     inventory.InventoryRepository
 	orderItemsService order_items.OrderItemsService
+	txManager         database.TxManager
 }
 
 func NewOrderService(
@@ -107,7 +110,6 @@ func (s *ordersService) CreateOrder(
 	// Calculate item totals and order totals.
 	var subtotal, tax, discount, total int64
 
-	// Calculate subtotal for every product
 	for i := range input.Items {
 		product := productMap[input.Items[i].ProductID]
 
@@ -120,44 +122,42 @@ func (s *ordersService) CreateOrder(
 
 	total = subtotal + tax - discount
 
-	// Begin transaction.
-	tx, err := s.ordersRepo.BeginTx(ctx)
+	var order *Orders
+
+	err := s.txManager.WithTx(ctx, func(tx bun.IDB) error {
+		// Create order.
+		order = &Orders{
+			Status:    OrderStatusPending,
+			Subtotal:  subtotal,
+			Tax:       tax,
+			Discount:  discount,
+			Total:     total,
+			CashierID: input.CashierID,
+		}
+
+		if err := s.ordersRepo.InsertOrder(ctx, tx, order); err != nil {
+			return fmt.Errorf("failed to create order: %w", err)
+		}
+
+		// Create order items using the same transaction.
+		orderItemsInput := &order_items.CreateOrderItemsInput{
+			OrderID: order.ID,
+			Items:   input.Items,
+		}
+
+		if err := s.orderItemsService.CreateOrderItems(
+			ctx,
+			tx,
+			orderItemsInput,
+		); err != nil {
+			return fmt.Errorf("failed to create order items: %w", err)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// Create order.
-	order := &Orders{
-		Status:    OrderStatusPending,
-		Subtotal:  subtotal,
-		Tax:       tax,
-		Discount:  discount,
-		Total:     total,
-		CashierID: input.CashierID,
-	}
-
-	if err := s.ordersRepo.InsertOrder(ctx, tx, order); err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
-	}
-
-	// Create order items using the same transaction.
-	orderItemsInput := &order_items.CreateOrderItemsInput{
-		OrderID: order.ID,
-		Items:   input.Items,
-	}
-
-	if err := s.orderItemsService.CreateOrderItems(
-		ctx,
-		tx,
-		orderItemsInput,
-	); err != nil {
-		return nil, fmt.Errorf("failed to create order items: %w", err)
-	}
-
-	// Commit transaction.
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+		return nil, err
 	}
 
 	return &CreateOrderOutput{
