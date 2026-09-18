@@ -15,8 +15,11 @@ type InventoryRepository interface {
 		db bun.IDB,
 		productID uuid.UUID,
 	) error
-	AddStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error)
-	RemoveStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error)
+	ChangeStock(
+		ctx context.Context,
+		db bun.IDB,
+		params StockParams,
+	) (*Inventory, error)
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
 }
 
@@ -30,11 +33,78 @@ func NewInventoryRepository(db bun.IDB) InventoryRepository {
 	}
 }
 
+type StockChange int
+
+const (
+	StockIncrease StockChange = 1
+	StockDecrease StockChange = -1
+)
+
 type StockParams struct {
 	ProductID uuid.UUID `bun:"product_id,notnull,type:uuid,unique"`
 	Quantity  int       `bun:"quantity,notnull,default:0"`
+	Change    StockChange
 }
 
+func (r *inventoryRepository) ChangeStock(
+	ctx context.Context,
+	db bun.IDB,
+	params StockParams,
+) (*Inventory, error) {
+	if params.Quantity <= 0 {
+		return nil, ErrInvalidQuantity
+	}
+
+	if params.Change != StockIncrease && params.Change != StockDecrease {
+		return nil, ErrInvalidStockChange
+	}
+
+	inventory := new(Inventory)
+
+	err := db.NewSelect().
+		Model(inventory).
+		Where("product_id = ?", params.ProductID).
+		Scan(ctx)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrInventoryNotFound
+		}
+
+		return nil, err
+	}
+
+	update := db.NewUpdate().
+		Model(inventory).
+		Where("product_id = ?", params.ProductID)
+
+	if params.Change == StockIncrease {
+		update.Set("quantity = quantity + ?", params.Quantity)
+	} else {
+		update.
+			Where("quantity >= ?", params.Quantity).
+			Set("quantity = quantity - ?", params.Quantity)
+	}
+
+	err = update.
+		Set("updated_at = NOW()").
+		Returning("*").
+		Scan(ctx)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			if params.Change == StockDecrease {
+				return nil, ErrInsufficientStock
+			}
+
+			return nil, ErrInventoryNotFound
+		}
+
+		return nil, err
+	}
+
+	return inventory, nil
+}
 func (r *inventoryRepository) InsertInitialInventory(
 	ctx context.Context,
 	db bun.IDB,
@@ -49,92 +119,6 @@ func (r *inventoryRepository) InsertInitialInventory(
 		Exec(ctx)
 
 	return err
-}
-
-func (r *inventoryRepository) AddStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error) {
-	if params.Quantity <= 0 {
-		return nil, ErrInvalidQuantity
-	}
-
-	inventory := new(Inventory)
-
-	// Check first if the inventory exists
-	err := db.NewSelect().
-		Model(inventory).
-		Where("product_id = ?", params.ProductID).
-		Scan(ctx)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrInventoryNotFound
-		}
-
-		return nil, err
-	}
-
-	err = db.NewUpdate().
-		Model(inventory).
-		Where("product_id = ?", params.ProductID).
-		Set("quantity = quantity + ?", params.Quantity).
-		Set("updated_at = NOW()").
-		Returning("*").
-		Scan(ctx)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrInventoryNotFound
-		}
-
-		return nil, err
-	}
-
-	return inventory, nil
-}
-
-func (r *inventoryRepository) RemoveStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error) {
-	if params.Quantity <= 0 {
-		return nil, ErrInvalidQuantity
-	}
-
-	inventory := new(Inventory)
-
-	// Check first if the inventory exists.
-	err := db.NewSelect().
-		Model(inventory).
-		Where("product_id = ?", params.ProductID).
-		Scan(ctx)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrInventoryNotFound
-		}
-
-		return nil, err
-	}
-
-	// if exists
-	// remove/decrease the quantity if the stored quantity is greater than the inputted quantity
-	err = db.NewUpdate().
-		Model(inventory).
-		Where("product_id = ?", params.ProductID).
-		Where("quantity >= ?", params.Quantity).
-		Set("quantity = quantity - ?", params.Quantity).
-		Set("updated_at = NOW()").
-		Returning("*").
-		Scan(ctx)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// Could be either:
-			// 1. inventory doesn't exist
-			// 2. not enough stock
-			return nil, ErrInsufficientStock
-		}
-
-		return nil, err
-	}
-
-	return inventory, nil
 }
 
 type ProductInventoryResult struct {

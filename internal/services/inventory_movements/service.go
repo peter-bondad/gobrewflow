@@ -2,7 +2,6 @@ package inventory_movements
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"gobrewflow/internal/services/inventory"
@@ -66,31 +65,19 @@ func (s *inventoryMovementsService) CreateMovement(ctx context.Context, input Cr
 
 	switch input.Type {
 	case InventoryMovementTypeReceived, InventoryMovementTypeReturned:
-		_, err := s.inventoryRepo.AddStock(ctx, db, inventory.StockParams{
+		_, err := s.inventoryRepo.ChangeStock(ctx, db, inventory.StockParams{
 			ProductID: input.ProductID,
 			Quantity:  input.Quantity,
+			Change:    inventory.StockIncrease,
 		})
 		if err != nil {
 			return nil, err
 		}
 	case InventoryMovementTypeSold, InventoryMovementTypeDamaged:
-		_, err := s.inventoryRepo.RemoveStock(ctx, db, inventory.StockParams{
+		_, err := s.inventoryRepo.ChangeStock(ctx, db, inventory.StockParams{
 			ProductID: input.ProductID,
 			Quantity:  input.Quantity,
-		})
-		if err != nil {
-			if errors.Is(err, inventory.ErrInsufficientStock) {
-				return nil, inventory.ErrInsufficientStock
-			}
-			if errors.Is(err, inventory.ErrInventoryNotFound) {
-				return nil, inventory.ErrInventoryNotFound
-			}
-			return nil, err
-		}
-	case InventoryMovementTypeAdjusted:
-		_, err := s.inventoryRepo.AddStock(ctx, db, inventory.StockParams{
-			ProductID: input.ProductID,
-			Quantity:  input.Quantity,
+			Change:    inventory.StockDecrease,
 		})
 		if err != nil {
 			return nil, err
