@@ -53,6 +53,13 @@ func (s *Server) protectedRoutes(
 	productsAPI := protectedAPI.Group("/products")
 	inventoryAPI := protectedAPI.Group("/inventory")
 	ordersAPI := protectedAPI.Group("/orders")
+	userAPI.Use(
+		middleware.RequireRoles(
+			userRepo,
+			user.Owner,
+			user.Manager,
+		),
+	)
 	invitationAPI.Use(
 		middleware.RequireRoles(
 			userRepo,
