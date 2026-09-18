@@ -1,7 +1,7 @@
 package orders
 
 import (
-	"gobrewflow/internal/middleware"
+	"gobrewflow/internal/services/auth"
 	"gobrewflow/internal/services/order_items"
 	"net/http"
 
@@ -42,11 +42,9 @@ func (h *ordersHandler) CreateOrder(c *gin.Context) {
 	}
 
 	// Get authenticated user from middleware.
-	userID, exists := middleware.GetUserID(c)
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "unauthorized",
-		})
+	userID, err := auth.GetUserID(c)
+	if err != nil {
+		c.Error(err)
 		return
 	}
 
