@@ -5,7 +5,11 @@ import (
 	"net/http"
 
 	"gobrewflow/internal/services/categories"
+	"gobrewflow/internal/services/inventory"
+	"gobrewflow/internal/services/inventory_movements"
 	"gobrewflow/internal/services/invitations"
+	"gobrewflow/internal/services/order_items"
+	"gobrewflow/internal/services/orders"
 	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
 
@@ -60,35 +64,54 @@ func ErrorHandler() gin.HandlerFunc {
 }
 
 var statusMap = map[error]int{
-	user.InvalidCredentials:                  http.StatusUnauthorized,
-	user.ErrInvalidUserRole:                  http.StatusBadRequest,
-	products.ErrProductNotFound:              http.StatusNotFound,
-	products.ProductNameAlreadyExists:        http.StatusConflict,
-	products.ProductIdIsRequired:             http.StatusBadRequest,
-	products.ProductInputIsRequired:          http.StatusBadRequest,
-	products.ProductNameCannotBeEmpty:        http.StatusBadRequest,
-	products.ProductSKUIsRequired:            http.StatusBadRequest,
-	products.ProductCategoryIDCannotBeEmpty:  http.StatusBadRequest,
-	products.InvalidLimitParameter:           http.StatusBadRequest,
-	products.InvalidPageParameter:            http.StatusBadRequest,
-	invitations.ErrInvitationNotFound:        http.StatusNotFound,
-	invitations.ErrInvitationAlreadySent:     http.StatusConflict,
-	invitations.ErrInvitationLimitReached:    http.StatusForbidden,
-	invitations.ErrInvitationAlreadyAccepted: http.StatusConflict,
-	invitations.ErrInvitationNotPending:      http.StatusConflict,
-	invitations.ErrInvitationExpired:         http.StatusGone,
-	invitations.ErrInvitationNotAccepted:     http.StatusConflict,
-	invitations.ErrSetupTokenInvalid:         http.StatusNotFound,
-	invitations.ErrSetupTokenExpired:         http.StatusGone,
-	invitations.ErrPasswordMismatch:          http.StatusBadRequest,
-	invitations.ErrEmailAlreadyExists:        http.StatusConflict,
-	invitations.ErrForbidden:                 http.StatusForbidden,
-	categories.CategoryNameAlreadyExists:     http.StatusConflict,
-	categories.ErrCategoryNotFound:           http.StatusNotFound,
-	categories.ErrCategoryAlreadyExists:      http.StatusConflict,
-	categories.ErrCategoryNotActive:          http.StatusConflict,
-	categories.InvalidLimitParameter:         http.StatusBadRequest,
-	categories.InvalidPageParameter:          http.StatusBadRequest,
+	user.InvalidCredentials:                    http.StatusUnauthorized,
+	user.ErrInvalidUserRole:                    http.StatusBadRequest,
+	products.ErrProductNotFound:                http.StatusNotFound,
+	products.ProductNameAlreadyExists:          http.StatusConflict,
+	products.ProductIdIsRequired:               http.StatusBadRequest,
+	products.ProductInputIsRequired:            http.StatusBadRequest,
+	products.ProductNameCannotBeEmpty:          http.StatusBadRequest,
+	products.ProductNameTooLong:                http.StatusBadRequest,
+	products.ProductPriceNotNegative:           http.StatusBadRequest,
+	products.ProductSKUIsRequired:              http.StatusBadRequest,
+	products.ProductCategoryIDCannotBeEmpty:    http.StatusBadRequest,
+	products.InvalidLimitParameter:             http.StatusBadRequest,
+	products.InvalidPageParameter:              http.StatusBadRequest,
+	products.ErrInvalidProductID:               http.StatusBadRequest,
+	products.ErrInvalidUnitPrice:               http.StatusBadRequest,
+	products.ErrNoProducts:                     http.StatusBadRequest,
+	invitations.ErrInvitationNotFound:          http.StatusNotFound,
+	invitations.ErrInvitationAlreadySent:       http.StatusConflict,
+	invitations.ErrInvitationLimitReached:      http.StatusForbidden,
+	invitations.ErrInvitationAlreadyAccepted:   http.StatusConflict,
+	invitations.ErrInvitationNotPending:        http.StatusConflict,
+	invitations.ErrInvitationExpired:           http.StatusGone,
+	invitations.ErrInvitationNotAccepted:       http.StatusConflict,
+	invitations.ErrSetupTokenInvalid:           http.StatusNotFound,
+	invitations.ErrSetupTokenExpired:           http.StatusGone,
+	invitations.ErrPasswordMismatch:            http.StatusBadRequest,
+	invitations.ErrEmailAlreadyExists:          http.StatusConflict,
+	invitations.ErrForbidden:                   http.StatusForbidden,
+	categories.CategoryNameAlreadyExists:       http.StatusConflict,
+	categories.ErrCategoryNotFound:             http.StatusNotFound,
+	categories.ErrCategoryAlreadyExists:        http.StatusConflict,
+	categories.ErrCategoryNotActive:            http.StatusConflict,
+	categories.InvalidLimitParameter:           http.StatusBadRequest,
+	categories.InvalidPageParameter:            http.StatusBadRequest,
+	inventory.ErrInventoryNotFound:             http.StatusNotFound,
+	inventory.ErrInvalidQuantity:               http.StatusBadRequest,
+	inventory.ErrInsufficientStock:             http.StatusConflict,
+	orders.ErrInvalidOrderID:                   http.StatusBadRequest,
+	orders.ErrInvalidCashierID:                 http.StatusBadRequest,
+	order_items.ErrInvalidOrderID:              http.StatusBadRequest,
+	inventory_movements.ErrInvalidMovementType: http.StatusBadRequest,
+	inventory_movements.ErrInvalidQuantity:     http.StatusBadRequest,
+	inventory_movements.ErrProductNotFound:     http.StatusNotFound,
+	inventory_movements.ErrInventoryNotFound:   http.StatusNotFound,
+	inventory_movements.ErrInsufficientStock:   http.StatusConflict,
+	inventory_movements.ErrMovementNotFound:    http.StatusNotFound,
+	inventory_movements.InvalidLimitParameter:  http.StatusBadRequest,
+	inventory_movements.InvalidPageParameter:   http.StatusBadRequest,
 }
 
 func getStatusCode(err error) int {
@@ -96,6 +119,11 @@ func getStatusCode(err error) int {
 		if errors.Is(err, sentinel) {
 			return code
 		}
+	}
+
+	var insufficientStockErr *orders.InsufficientStockError
+	if errors.As(err, &insufficientStockErr) {
+		return http.StatusConflict
 	}
 
 	return http.StatusInternalServerError
