@@ -41,8 +41,8 @@ const (
 )
 
 type StockParams struct {
-	ProductID uuid.UUID `bun:"product_id,notnull,type:uuid,unique"`
-	Quantity  int       `bun:"quantity,notnull,default:0"`
+	ProductID uuid.UUID
+	Quantity  int
 	Change    StockChange
 }
 
