@@ -13,7 +13,6 @@ import (
 
 type CreateProductInput struct {
 	Name       string
-	SKU        string
 	Slug       string
 	CategoryID string
 }

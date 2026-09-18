@@ -31,7 +31,7 @@ func NewProductRepository(db *bun.DB) ProductRepository {
 
 func (r *productRepository) InsertProduct(ctx context.Context, product *Product) error {
 	product.ID = uuid.New()
-	_, err := r.db.NewInsert().Model(product).Exec(ctx)
+	_, err := r.db.NewInsert().Model(product).ExcludeColumn("sku").Exec(ctx)
 	return err
 }
 
