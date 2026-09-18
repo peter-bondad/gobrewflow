@@ -21,6 +21,7 @@ type InventoryRepository interface {
 		params StockParams,
 	) (*Inventory, error)
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
+	FindInventoryByProductID(ctx context.Context, productID uuid.UUID) (*Inventory, error)
 }
 
 type inventoryRepository struct {
@@ -148,6 +149,28 @@ func (r *inventoryRepository) FindByProductID(
 		ColumnExpr("p.sku").
 		ColumnExpr("p.price").
 		Where("i.product_id = ?", productID).
+		Scan(ctx)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrInventoryNotFound
+		}
+
+		return nil, err
+	}
+
+	return inventory, nil
+}
+
+func (r *inventoryRepository) FindInventoryByProductID(
+	ctx context.Context,
+	productID uuid.UUID,
+) (*Inventory, error) {
+	inventory := new(Inventory)
+
+	err := r.db.NewSelect().
+		Model(inventory).
+		Where("product_id = ?", productID).
 		Scan(ctx)
 
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 
 type InventoryHandler interface {
 	FindByProductID(ctx *gin.Context)
+	GetInventoryByProductID(ctx *gin.Context)
 }
 
 type inventoryHandler struct {
@@ -61,4 +62,39 @@ func (h *inventoryHandler) FindByProductID(c *gin.Context) {
 	}
 
 	c.JSON(200, resp)
+}
+
+type GetInventoryByProductIDRequestParam struct {
+	ProductID string `uri:"productId" binding:"required,uuid"`
+}
+
+type ProductInventoryQuantityResponse struct {
+	ProductID uuid.UUID `json:"productId"`
+	Quantity  int       `json:"quantity"`
+}
+
+func (h *inventoryHandler) GetInventoryByProductID(c *gin.Context) {
+	var param GetInventoryByProductIDRequestParam
+
+	if err := c.ShouldBindUri(&param); err != nil {
+		c.Error(err)
+		return
+	}
+
+	productID, err := uuid.Parse(param.ProductID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product id"})
+		return
+	}
+
+	inventory, err := h.service.GetInventoryByProductID(c.Request.Context(), productID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(200, &ProductInventoryQuantityResponse{
+		ProductID: inventory.ProductID,
+		Quantity:  inventory.Quantity,
+	})
 }

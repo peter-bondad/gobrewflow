@@ -67,23 +67,29 @@ func (s *Server) protectedRoutes(
 			user.Manager,
 		),
 	)
-
+	// Users
 	userAPI.GET("/", userHandler.ListUsers)
-	invitationAPI.POST("/send", invitationHandler.SendInvitation)
+
+	// Invitations
+	invitationAPI.POST("/", invitationHandler.SendInvitation)
 	invitationAPI.POST("/:id/cancel", invitationHandler.CancelInvitation)
 	invitationAPI.GET("/", invitationHandler.ListInvitations)
 
-	categoriesAPI.POST("/add", categoriesHandler.CreateCategory)
-	categoriesAPI.POST("/:id/update", categoriesHandler.UpdateCategoryName)
-	categoriesAPI.POST("/:id/status", categoriesHandler.SetCategoryStatus)
+	// Categories
+	categoriesAPI.POST("/", categoriesHandler.CreateCategory)
+	categoriesAPI.PATCH("/:id", categoriesHandler.UpdateCategoryName)
+	categoriesAPI.PATCH("/:id/status", categoriesHandler.SetCategoryStatus)
 	categoriesAPI.GET("/", categoriesHandler.ListCategories)
 
-	productsAPI.POST("/add", productsHandler.CreateProducts)
+	// Products
+	productsAPI.POST("/", productsHandler.CreateProducts)
 	productsAPI.GET("/", productsHandler.ListProducts)
-	productsAPI.GET("/:id", productsHandler.FindProductByID)
 	productsAPI.GET("/sku/:sku", productsHandler.FindProductBySKU)
+	productsAPI.GET("/:id", productsHandler.FindProductByID)
 
-	inventoryAPI.GET("/:id", inventoryHandler.FindByProductID)
+	// Inventory
+	inventoryAPI.GET("/:productId", inventoryHandler.GetInventoryByProductID)
 
+	// Orders
 	ordersAPI.POST("/", ordersHandler.CreateOrder)
 }

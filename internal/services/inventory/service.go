@@ -16,6 +16,7 @@ type InventoryService interface {
 		productID uuid.UUID,
 	) error
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryOutput, error)
+	GetInventoryByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryQuantityResponse, error)
 }
 
 type inventoryService struct {
@@ -62,5 +63,17 @@ func (s inventoryService) FindByProductID(ctx context.Context, productID uuid.UU
 		Quantity:    inventoryProduct.Quantity,
 		Price:       inventoryProduct.Price,
 		SKU:         inventoryProduct.SKU,
+	}, nil
+}
+
+func (s inventoryService) GetInventoryByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryQuantityResponse, error) {
+	inventory, err := s.inventoryRepo.FindInventoryByProductID(ctx, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProductInventoryQuantityResponse{
+		ProductID: inventory.ProductID,
+		Quantity:  inventory.Quantity,
 	}, nil
 }
