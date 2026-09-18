@@ -104,7 +104,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	orderItemsService := order_items.NewOrderItemsService(orderItemsRepo)
 
 	ordersRepo := orders.NewOrderItemRepository(db)
-	ordersService := orders.NewOrderService(ordersRepo, productsRepo, inventoryRepo, orderItemsService)
+	ordersService := orders.NewOrderService(ordersRepo, productsRepo, inventoryRepo, inventoryMovementsRepo, orderItemsService)
 	ordersHandler := orders.NewOrdesHandler(ordersService)
 
 	return &Container{

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"gobrewflow/internal/database"
 	"gobrewflow/internal/services/inventory"
+	"gobrewflow/internal/services/inventory_movements"
 	"gobrewflow/internal/services/order_items"
 	"gobrewflow/internal/services/products"
 
@@ -19,24 +21,27 @@ type OrdersService interface {
 }
 
 type ordersService struct {
-	ordersRepo        OrderRepository
-	productsRepo      products.ProductRepository
-	inventoryRepo     inventory.InventoryRepository
-	orderItemsService order_items.OrderItemsService
-	txManager         database.TxManager
+	ordersRepo             OrderRepository
+	productsRepo           products.ProductRepository
+	inventoryRepo          inventory.InventoryRepository
+	inventoryMovementsRepo inventory_movements.InventoryMovementsRepository
+	orderItemsService      order_items.OrderItemsService
+	txManager              database.TxManager
 }
 
 func NewOrderService(
 	ordersRepo OrderRepository,
 	productsRepo products.ProductRepository,
 	inventoryRepo inventory.InventoryRepository,
+	inventoryMovementsRepo inventory_movements.InventoryMovementsRepository,
 	orderItemsService order_items.OrderItemsService,
 ) OrdersService {
 	return &ordersService{
-		ordersRepo:        ordersRepo,
-		productsRepo:      productsRepo,
-		inventoryRepo:     inventoryRepo,
-		orderItemsService: orderItemsService,
+		ordersRepo:             ordersRepo,
+		productsRepo:           productsRepo,
+		inventoryRepo:          inventoryRepo,
+		inventoryMovementsRepo: inventoryMovementsRepo,
+		orderItemsService:      orderItemsService,
 	}
 }
 
@@ -57,6 +62,20 @@ type CreateOrderOutput struct {
 	Total    int64
 
 	CashierID uuid.UUID
+}
+
+type InsufficientStockItem struct {
+	ProductID    uuid.UUID
+	RequestedQty int
+	AvailableQty int
+}
+
+type InsufficientStockError struct {
+	Items []InsufficientStockItem
+}
+
+func (e *InsufficientStockError) Error() string {
+	return "one or more products have insufficient stock"
 }
 
 func (s *ordersService) CreateOrder(
@@ -88,6 +107,7 @@ func (s *ordersService) CreateOrder(
 
 	// Load products and validate inventory.
 	productMap := make(map[uuid.UUID]*products.Product, len(requestedQty))
+	var insufficientStock []InsufficientStockItem
 
 	for productID, quantity := range requestedQty {
 		product, err := s.productsRepo.FindByID(ctx, productID)
@@ -101,10 +121,21 @@ func (s *ordersService) CreateOrder(
 		}
 
 		if stock.Quantity < quantity {
-			return nil, inventory.ErrInsufficientStock
+			insufficientStock = append(insufficientStock, InsufficientStockItem{
+				ProductID:    productID,
+				RequestedQty: quantity,
+				AvailableQty: stock.Quantity,
+			})
+			continue
 		}
 
 		productMap[productID] = product
+	}
+
+	if len(insufficientStock) > 0 {
+		return nil, &InsufficientStockError{
+			Items: insufficientStock,
+		}
 	}
 
 	// Calculate item totals and order totals.
@@ -125,6 +156,38 @@ func (s *ordersService) CreateOrder(
 	var order *Orders
 
 	err := s.txManager.WithTx(ctx, func(tx bun.IDB) error {
+		// Deduct stock and create inventory movements.
+		for productID, quantity := range requestedQty {
+			_, err := s.inventoryRepo.ChangeStock(
+				ctx,
+				tx,
+				inventory.StockParams{
+					ProductID: productID,
+					Quantity:  quantity,
+					Change:    inventory.StockDecrease,
+				},
+			)
+			if err != nil {
+				return err
+			}
+
+			movement := &inventory_movements.InventoryMovement{
+				ID:        uuid.New(),
+				ProductID: productID,
+				Type:      inventory_movements.InventoryMovementTypeSold,
+				Quantity:  quantity,
+				CreatedAt: time.Now(),
+			}
+
+			if err := s.inventoryMovementsRepo.CreateMovement(
+				ctx,
+				tx,
+				movement,
+			); err != nil {
+				return fmt.Errorf("failed to create inventory movement: %w", err)
+			}
+		}
+
 		// Create order.
 		order = &Orders{
 			Status:    OrderStatusPending,
