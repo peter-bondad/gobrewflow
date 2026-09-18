@@ -78,7 +78,7 @@ func (s *Server) protectedRoutes(
 	categoriesAPI.POST("/:id/status", categoriesHandler.SetCategoryStatus)
 	categoriesAPI.GET("/", categoriesHandler.ListCategories)
 
-	productsAPI.POST("/add", productsHandler.CreateProduct)
+	productsAPI.POST("/add", productsHandler.CreateProducts)
 	productsAPI.GET("/", productsHandler.ListProducts)
 	productsAPI.GET("/:id", productsHandler.FindProductByID)
 	productsAPI.GET("/sku/:sku", productsHandler.FindProductBySKU)

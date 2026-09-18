@@ -10,6 +10,11 @@ import (
 )
 
 type InventoryRepository interface {
+	InsertInitialInventory(
+		ctx context.Context,
+		db bun.IDB,
+		productID uuid.UUID,
+	) error
 	AddStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error)
 	RemoveStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error)
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
@@ -26,8 +31,24 @@ func NewInventoryRepository(db bun.IDB) InventoryRepository {
 }
 
 type StockParams struct {
-	ProductID uuid.UUID
-	Quantity  int
+	ProductID uuid.UUID `bun:"product_id,notnull,type:uuid,unique"`
+	Quantity  int       `bun:"quantity,notnull,default:0"`
+}
+
+func (r *inventoryRepository) InsertInitialInventory(
+	ctx context.Context,
+	db bun.IDB,
+	productID uuid.UUID,
+) error {
+	inventory := &Inventory{
+		ProductID: productID,
+	}
+
+	_, err := db.NewInsert().
+		Model(inventory).
+		Exec(ctx)
+
+	return err
 }
 
 func (r *inventoryRepository) AddStock(ctx context.Context, db bun.IDB, params StockParams) (*Inventory, error) {

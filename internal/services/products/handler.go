@@ -8,7 +8,7 @@ import (
 )
 
 type ProductHandler interface {
-	CreateProduct(c *gin.Context)
+	CreateProducts(c *gin.Context)
 	FindProductByID(c *gin.Context)
 	FindProductBySKU(c *gin.Context)
 	ListProducts(c *gin.Context)
@@ -27,34 +27,45 @@ func NewProductHandler(service ProductService) ProductHandler {
 type CreateProductRequest struct {
 	Name       string `json:"name" binding:"required"`
 	Slug       string `json:"slug"`
-	CategoryID string `json:"category_id"`
+	Price      int64  `json:"price" binding:"required"`
+	CategoryID string `json:"category_id" binding:"required"`
 }
 
-func (h *productHandler) CreateProduct(c *gin.Context) {
-	var req CreateProductRequest
+func (h *productHandler) CreateProducts(c *gin.Context) {
+	var req []CreateProductRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.Error(err)
 		return
 	}
 
-	if req.Name == "" {
-		c.Error(ProductNameCannotBeEmpty)
+	if len(req) == 0 {
+		c.Error(ErrNoProducts)
 		return
 	}
 
-	if req.CategoryID == "" {
-		c.Error(ProductCategoryIDCannotBeEmpty)
-		return
+	inputs := make([]CreateProductInput, len(req))
+
+	for i, product := range req {
+		inputs[i] = CreateProductInput{
+			Name:       product.Name,
+			Slug:       product.Slug,
+			CategoryID: product.CategoryID,
+		}
 	}
 
-	err := h.service.CreateProduct(c.Request.Context(), &CreateProductInput{
-		Name:       req.Name,
-		Slug:       req.Slug,
-		CategoryID: req.CategoryID,
-	})
-	if err != nil {
+	if err := h.service.CreateProducts(
+		c.Request.Context(),
+		inputs,
+	); err != nil {
 		c.Error(err)
+		return
+	}
+
+	if len(req) > 1 {
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "Products created successfully",
+		})
 		return
 	}
 
@@ -62,7 +73,6 @@ func (h *productHandler) CreateProduct(c *gin.Context) {
 		"message": "Product created successfully",
 	})
 }
-
 func (h *productHandler) FindProductByID(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {

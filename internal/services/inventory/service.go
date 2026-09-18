@@ -4,24 +4,27 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"gobrewflow/internal/services/products"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 )
 
 type InventoryService interface {
+	CreateInitialInventory(
+		ctx context.Context,
+		tx bun.IDB,
+		productID uuid.UUID,
+	) error
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryOutput, error)
 }
 
 type inventoryService struct {
 	inventoryRepo InventoryRepository
-	productRepo   products.ProductRepository
 }
 
-func NewInventoryService(inventoryRepo InventoryRepository, productRepo products.ProductRepository) InventoryService {
+func NewInventoryService(inventoryRepo InventoryRepository) InventoryService {
 	return &inventoryService{
 		inventoryRepo: inventoryRepo,
-		productRepo:   productRepo,
 	}
 }
 
@@ -32,6 +35,14 @@ type ProductInventoryOutput struct {
 	ProductName string
 	SKU         string
 	Price       int64
+}
+
+func (s *inventoryService) CreateInitialInventory(
+	ctx context.Context,
+	tx bun.IDB,
+	productID uuid.UUID,
+) error {
+	return s.inventoryRepo.InsertInitialInventory(ctx, tx, productID)
 }
 
 func (s inventoryService) FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryOutput, error) {

@@ -4,27 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"gobrewflow/internal/database"
 	"gobrewflow/internal/services/categories"
+	"gobrewflow/internal/services/inventory"
 	"gobrewflow/internal/utils"
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/uptrace/bun"
 )
 
-type CreateProductInput struct {
-	Name       string
-	Slug       string
-	CategoryID string
-}
-
-type ProductOutput struct {
-	Name       string
-	SKU        string
-	Slug       string
-	CategoryID string
-}
 type ProductService interface {
-	CreateProduct(ctx context.Context, product *CreateProductInput) error
+	CreateProducts(ctx context.Context, inputs []CreateProductInput) error
 	FindByID(ctx context.Context, id string) (*ProductOutput, error)
 	FindBySKU(ctx context.Context, sku string) (*ProductOutput, error)
 	ListProducts(ctx context.Context, params ProductListInput) (ProductListOutput, error)
@@ -32,14 +24,18 @@ type ProductService interface {
 }
 
 type productService struct {
-	productRepo  ProductRepository
-	categoryRepo categories.CategoryRepository
+	productRepo      ProductRepository
+	categoryRepo     categories.CategoryRepository
+	inventoryService inventory.InventoryService
+	txManager        database.TxManager
 }
 
-func NewProductService(productRepo ProductRepository, categoryRepo categories.CategoryRepository) ProductService {
+func NewProductService(productRepo ProductRepository, categoryRepo categories.CategoryRepository, inventoryService inventory.InventoryService, txManager database.TxManager) ProductService {
 	return &productService{
-		productRepo:  productRepo,
-		categoryRepo: categoryRepo,
+		productRepo:      productRepo,
+		categoryRepo:     categoryRepo,
+		inventoryService: inventoryService,
+		txManager:        txManager,
 	}
 }
 
@@ -57,16 +53,54 @@ func validateCreateProductInput(input *CreateProductInput) error {
 	}
 	return nil
 }
-func (s *productService) CreateProduct(ctx context.Context, input *CreateProductInput) error {
+
+type CreateProductInput struct {
+	Name       string
+	Slug       string
+	CategoryID string
+}
+
+type ProductOutput struct {
+	Name       string
+	SKU        string
+	Slug       string
+	CategoryID string
+}
+
+func (s *productService) CreateProducts(
+	ctx context.Context,
+	inputs []CreateProductInput,
+) error {
+	if len(inputs) == 0 {
+		return ErrNoProducts
+	}
+
+	return s.txManager.WithTx(ctx, func(tx bun.IDB) error {
+		for i := range inputs {
+			if err := s.createProduct(ctx, tx, &inputs[i]); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (s *productService) createProduct(
+	ctx context.Context,
+	tx bun.IDB,
+	input *CreateProductInput,
+) error {
 	if err := validateCreateProductInput(input); err != nil {
 		return err
 	}
 
-	categoryIDUUID, err := utils.ParseUUID(input.CategoryID)
+	categoryID, err := utils.ParseUUID(input.CategoryID)
 	if err != nil {
 		return err
 	}
-	category, err := s.categoryRepo.FindCategoryByID(ctx, categoryIDUUID)
+
+	category, err := s.categoryRepo.FindCategoryByID(ctx, categoryID)
 	if err != nil {
 		return err
 	}
@@ -75,6 +109,7 @@ func (s *productService) CreateProduct(ctx context.Context, input *CreateProduct
 	if err != nil {
 		return err
 	}
+
 	if exists {
 		return ProductNameAlreadyExists
 	}
@@ -84,13 +119,25 @@ func (s *productService) CreateProduct(ctx context.Context, input *CreateProduct
 		slug = utils.GenerateSlug(input.Name)
 	}
 
-	p := &Product{
+	product := &Product{
 		Name:       input.Name,
 		Slug:       slug,
 		CategoryID: category.ID,
 	}
 
-	return s.productRepo.InsertProduct(ctx, p)
+	if err := s.productRepo.InsertProduct(ctx, tx, product); err != nil {
+		return fmt.Errorf("failed to create product: %w", err)
+	}
+
+	if err := s.inventoryService.CreateInitialInventory(
+		ctx,
+		tx,
+		product.ID,
+	); err != nil {
+		return fmt.Errorf("failed to create initial inventory: %w", err)
+	}
+
+	return nil
 }
 
 func (s *productService) FindByID(ctx context.Context, id string) (*ProductOutput, error) {

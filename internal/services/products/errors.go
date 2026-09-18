@@ -16,4 +16,5 @@ var (
 	InvalidPageParameter           = errors.New("invalid page parameter")
 	ErrInvalidProductID            = errors.New("invalid product id")
 	ErrInvalidUnitPrice            = errors.New("invalid unit price")
+	ErrNoProducts                  = errors.New("no product provided")
 )

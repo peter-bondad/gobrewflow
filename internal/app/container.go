@@ -2,6 +2,7 @@ package app
 
 import (
 	"gobrewflow/internal/config"
+	"gobrewflow/internal/database"
 	"gobrewflow/internal/services/account"
 	"gobrewflow/internal/services/auth"
 	"gobrewflow/internal/services/categories"
@@ -33,6 +34,8 @@ type Container struct {
 
 	TokenBlacklistRepo auth.TokenBlacklistRepository
 
+	TXManager database.TxManager
+
 	CategoriesHandler categories.CategoryHandler
 
 	ProductsHandler products.ProductHandler
@@ -60,6 +63,8 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 
 	tokenBlacklistRepo := auth.NewTokenBlacklistRepository(db)
 
+	txManager := database.NewTxManager(db)
+
 	userRepo := user.NewUserRepository(db)
 	userService := user.NewUserService(userRepo, jwtService, tokenBlacklistRepo)
 	userHandler := user.NewUserHandler(userService)
@@ -81,13 +86,13 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	categoriesService := categories.NewCategoryService(categoriesRepo)
 	categoriesHandler := categories.NewCategoryHandler(categoriesService)
 
-	productsRepo := products.NewProductRepository(db)
-	productService := products.NewProductService(productsRepo, categoriesRepo)
-	productsHandler := products.NewProductHandler(productService)
-
 	inventoryRepo := inventory.NewInventoryRepository(db)
-	inventoryService := inventory.NewInventoryService(inventoryRepo, productsRepo)
+	inventoryService := inventory.NewInventoryService(inventoryRepo)
 	inventoryHandler := inventory.NewInventoryHandler(inventoryService)
+
+	productsRepo := products.NewProductRepository(db)
+	productService := products.NewProductService(productsRepo, categoriesRepo, inventoryService, txManager)
+	productsHandler := products.NewProductHandler(productService)
 
 	inventoryMovementsRepo := inventory_movements.NewInventoryMovementsRepository(db)
 	inventoryMovementService := inventory_movements.NewInventoryMovementsService(
@@ -113,6 +118,8 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		AccountRepo: accountRepo,
 
 		JwtService: jwtService,
+
+		TXManager: txManager,
 
 		TokenBlacklistRepo: tokenBlacklistRepo,
 		CategoriesHandler:  categoriesHandler,

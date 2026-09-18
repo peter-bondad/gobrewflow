@@ -11,7 +11,7 @@ import (
 )
 
 type ProductRepository interface {
-	InsertProduct(ctx context.Context, product *Product) error
+	InsertProduct(ctx context.Context, db bun.IDB, product *Product) error
 	FindByID(ctx context.Context, id uuid.UUID) (*Product, error)
 	FindBySKU(ctx context.Context, sku string) (*Product, error)
 	ExistsByName(ctx context.Context, name string) (bool, error)
@@ -29,7 +29,7 @@ func NewProductRepository(db *bun.DB) ProductRepository {
 	}
 }
 
-func (r *productRepository) InsertProduct(ctx context.Context, product *Product) error {
+func (r *productRepository) InsertProduct(ctx context.Context, db bun.IDB, product *Product) error {
 	product.ID = uuid.New()
 	_, err := r.db.NewInsert().Model(product).ExcludeColumn("sku").Exec(ctx)
 	return err
