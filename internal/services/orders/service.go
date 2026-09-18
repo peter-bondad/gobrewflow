@@ -19,15 +19,20 @@ type OrdersService interface {
 type ordersService struct {
 	ordersRepo        OrderRepository
 	productsRepo      products.ProductRepository
+	inventoryRepo     inventory.InventoryRepository
 	orderItemsService order_items.OrderItemsService
 }
 
-func NewOrderService(ordersRepo OrderRepository,
+func NewOrderService(
+	ordersRepo OrderRepository,
 	productsRepo products.ProductRepository,
-	orderItemsService order_items.OrderItemsService) OrdersService {
+	inventoryRepo inventory.InventoryRepository,
+	orderItemsService order_items.OrderItemsService,
+) OrdersService {
 	return &ordersService{
 		ordersRepo:        ordersRepo,
 		productsRepo:      productsRepo,
+		inventoryRepo:     inventoryRepo,
 		orderItemsService: orderItemsService,
 	}
 }
@@ -51,7 +56,10 @@ type CreateOrderOutput struct {
 	CashierID uuid.UUID
 }
 
-func (s *ordersService) CreateOrder(ctx context.Context, input *CreateOrderInput) (*CreateOrderOutput, error) {
+func (s *ordersService) CreateOrder(
+	ctx context.Context,
+	input *CreateOrderInput,
+) (*CreateOrderOutput, error) {
 	if len(input.Items) == 0 {
 		return nil, errors.New("order must have at least one item")
 	}
@@ -60,8 +68,9 @@ func (s *ordersService) CreateOrder(ctx context.Context, input *CreateOrderInput
 		return nil, ErrInvalidCashierID
 	}
 
-	// Load products to get current prices
-	productMap := make(map[uuid.UUID]*products.Product, len(input.Items))
+	// Aggregate requested quantities by product.
+	requestedQty := make(map[uuid.UUID]int, len(input.Items))
+
 	for _, item := range input.Items {
 		if item.ProductID == uuid.Nil {
 			return nil, products.ErrInvalidProductID
@@ -71,34 +80,54 @@ func (s *ordersService) CreateOrder(ctx context.Context, input *CreateOrderInput
 			return nil, inventory.ErrInvalidQuantity
 		}
 
-		product, err := s.productsRepo.FindByID(ctx, item.ProductID)
+		requestedQty[item.ProductID] += item.Quantity
+	}
+
+	// Load products and validate inventory.
+	productMap := make(map[uuid.UUID]*products.Product, len(requestedQty))
+
+	for productID, quantity := range requestedQty {
+		product, err := s.productsRepo.FindByID(ctx, productID)
 		if err != nil {
 			return nil, err
 		}
 
-		productMap[item.ProductID] = product
+		stock, err := s.inventoryRepo.FindByProductID(ctx, productID)
+		if err != nil {
+			return nil, err
+		}
+
+		if stock.Quantity < quantity {
+			return nil, inventory.ErrInsufficientStock
+		}
+
+		productMap[productID] = product
 	}
 
-	// Calculate item totals and order totals
+	// Calculate item totals and order totals.
 	var subtotal, tax, discount, total int64
-	for i := range input.Items {
 
+	// Calculate subtotal for every product
+	for i := range input.Items {
 		product := productMap[input.Items[i].ProductID]
+
 		input.Items[i].UnitPrice = product.Price
-		input.Items[i].Total = product.Price * int64(input.Items[i].Quantity)
+		input.Items[i].Total =
+			product.Price * int64(input.Items[i].Quantity)
+
 		subtotal += input.Items[i].Total
 	}
 
 	total = subtotal + tax - discount
 
-	// Begin transaction
+	// Begin transaction.
 	tx, err := s.ordersRepo.BeginTx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Create order
+	// Create order.
 	order := &Orders{
 		Status:    OrderStatusPending,
 		Subtotal:  subtotal,
@@ -112,17 +141,21 @@ func (s *ordersService) CreateOrder(ctx context.Context, input *CreateOrderInput
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 
-	// Create order items
+	// Create order items using the same transaction.
 	orderItemsInput := &order_items.CreateOrderItemsInput{
 		OrderID: order.ID,
 		Items:   input.Items,
 	}
 
-	if err := s.orderItemsService.CreateOrderItems(ctx, tx, orderItemsInput); err != nil {
+	if err := s.orderItemsService.CreateOrderItems(
+		ctx,
+		tx,
+		orderItemsInput,
+	); err != nil {
 		return nil, fmt.Errorf("failed to create order items: %w", err)
 	}
 
-	// Commit transaction
+	// Commit transaction.
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
