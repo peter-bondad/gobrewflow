@@ -93,17 +93,16 @@ func (r *productRepository) ListProducts(
 
 	query := r.db.NewSelect().
 		Model(&products).
-		TableExpr("products AS product").
-		ColumnExpr("product.id").
-		ColumnExpr("product.name").
-		ColumnExpr("product.sku").
-		ColumnExpr("product.description").
-		ColumnExpr("product.price").
-		ColumnExpr("product.category_id").
-		ColumnExpr("product.image_url").
+		ColumnExpr("p.id").
+		ColumnExpr("p.name").
+		ColumnExpr("p.sku").
+		ColumnExpr("p.description").
+		ColumnExpr("p.price").
+		ColumnExpr("p.category_id").
+		ColumnExpr("p.image_url").
 		ColumnExpr("i.quantity").
-		Join("JOIN inventory AS i ON i.product_id = product.id").
-		Where("product.is_active = ?", true)
+		Join("JOIN inventory AS i ON i.product_id = p.id").
+		Where("p.is_active = ?", true)
 
 	// General search
 	if params.Search != "" {
@@ -111,9 +110,9 @@ func (r *productRepository) ListProducts(
 
 		query = query.Where(
 			`(
-				product.name ILIKE ?
-				OR product.sku ILIKE ?
-				OR product.description ILIKE ?
+				p.name ILIKE ?
+				OR p.sku ILIKE ?
+				OR p.description ILIKE ?
 			)`,
 			search,
 			search,
@@ -124,21 +123,21 @@ func (r *productRepository) ListProducts(
 	// Field-specific filters
 	if params.Name != "" {
 		query = query.Where(
-			"product.name ILIKE ?",
+			"p.name ILIKE ?",
 			"%"+params.Name+"%",
 		)
 	}
 
 	if params.SKU != "" {
 		query = query.Where(
-			"product.sku ILIKE ?",
+			"p.sku ILIKE ?",
 			"%"+params.SKU+"%",
 		)
 	}
 
 	if params.Category != "" {
 		query = query.Where(
-			"product.category_id = ?",
+			"p.category_id = ?",
 			params.Category,
 		)
 	}
@@ -146,14 +145,14 @@ func (r *productRepository) ListProducts(
 	// Price filters
 	if params.MinPrice > 0 {
 		query = query.Where(
-			"product.price >= ?",
+			"p.price >= ?",
 			params.MinPrice,
 		)
 	}
 
 	if params.MaxPrice > 0 {
 		query = query.Where(
-			"product.price <= ?",
+			"p.price <= ?",
 			params.MaxPrice,
 		)
 	}
@@ -190,7 +189,7 @@ func (r *productRepository) ListProducts(
 
 	// Fetch results
 	err = query.
-		Order("product.name ASC").
+		Order("p.name ASC").
 		Scan(ctx)
 	if err != nil {
 		return nil, err

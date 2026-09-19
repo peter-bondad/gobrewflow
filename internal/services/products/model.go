@@ -26,12 +26,13 @@ type Product struct {
 
 type ProductListItem struct {
 	bun.BaseModel `bun:"table:products,alias:p"`
-	ID            uuid.UUID `bun:"id"`
-	Name          string    `bun:"name"`
-	SKU           string    `bun:"sku"`
-	Description   *string   `bun:"description"`
-	Price         int64     `bun:"price"`
-	CategoryID    uuid.UUID `bun:"category_id"`
-	ImageURL      *string   `bun:"image_url"`
-	Quantity      int64     `bun:"quantity"`
+
+	ID          uuid.UUID `bun:"id"`
+	Name        string    `bun:"name"`
+	SKU         string    `bun:"sku"`
+	Description *string   `bun:"description"`
+	Price       int64     `bun:"price"`
+	CategoryID  uuid.UUID `bun:"category_id"`
+	ImageURL    *string   `bun:"image_url"`
+	Quantity    int64     `bun:"quantity"`
 }
