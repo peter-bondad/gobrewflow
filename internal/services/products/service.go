@@ -57,6 +57,7 @@ func validateCreateProductInput(input *CreateProductInput) error {
 type CreateProductInput struct {
 	Name       string
 	Slug       string
+	Price      int64
 	CategoryID string
 }
 
@@ -122,6 +123,7 @@ func (s *productService) createProduct(
 	product := &Product{
 		Name:       input.Name,
 		Slug:       slug,
+		Price:      input.Price,
 		CategoryID: category.ID,
 	}
 

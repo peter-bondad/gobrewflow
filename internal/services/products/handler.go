@@ -50,6 +50,7 @@ func (h *productHandler) CreateProducts(c *gin.Context) {
 		inputs[i] = CreateProductInput{
 			Name:       product.Name,
 			Slug:       product.Slug,
+			Price:      product.Price,
 			CategoryID: product.CategoryID,
 		}
 	}
