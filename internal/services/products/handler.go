@@ -27,7 +27,7 @@ func NewProductHandler(service ProductService) ProductHandler {
 type CreateProductRequest struct {
 	Name       string `json:"name" binding:"required"`
 	Slug       string `json:"slug"`
-	Price      int64  `json:"price" binding:"required"`
+	Price      *int64 `json:"price" binding:"required"`
 	CategoryID string `json:"category_id" binding:"required"`
 }
 
@@ -50,7 +50,7 @@ func (h *productHandler) CreateProducts(c *gin.Context) {
 		inputs[i] = CreateProductInput{
 			Name:       product.Name,
 			Slug:       product.Slug,
-			Price:      product.Price,
+			Price:      *product.Price,
 			CategoryID: product.CategoryID,
 		}
 	}
