@@ -17,7 +17,7 @@ import (
 
 type ProductService interface {
 	CreateProducts(ctx context.Context, inputs []CreateProductInput) error
-	FindByID(ctx context.Context, id string) (*ProductOutput, error)
+	GetProduct(ctx context.Context, id uuid.UUID) (ProductOutput, error)
 	FindBySKU(ctx context.Context, sku string) (*ProductOutput, error)
 	ListProducts(ctx context.Context, params ProductListInput) (ProductListOutput, error)
 	UpdateProduct(ctx context.Context, input UpdateProductInput) (*UpdateProductOutput, error)
@@ -62,10 +62,14 @@ type CreateProductInput struct {
 }
 
 type ProductOutput struct {
-	Name       string
-	SKU        string
-	Slug       string
-	CategoryID string
+	ID          uuid.UUID
+	Name        string
+	SKU         string
+	Description *string
+	Price       int64
+	CategoryID  uuid.UUID
+	ImageURL    *string
+	Quantity    int64
 }
 
 func (s *productService) CreateProducts(
@@ -142,26 +146,24 @@ func (s *productService) createProduct(
 	return nil
 }
 
-func (s *productService) FindByID(ctx context.Context, id string) (*ProductOutput, error) {
-	if id == "" {
-		return nil, ProductIdIsRequired
+func (s *productService) GetProduct(
+	ctx context.Context,
+	id uuid.UUID,
+) (ProductOutput, error) {
+	product, err := s.productRepo.FindByID(ctx, id)
+	if err != nil {
+		return ProductOutput{}, err
 	}
 
-	uuid, err := utils.ParseUUID(id)
-	if err != nil {
-		return nil, err
-	}
-	product, err := s.productRepo.FindByID(ctx, uuid)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrProductNotFound
-		}
-		return nil, err
-	}
-
-	return &ProductOutput{
-		Name: product.Name,
-		SKU:  product.SKU,
+	return ProductOutput{
+		ID:          product.ID,
+		Name:        product.Name,
+		SKU:         product.SKU,
+		Description: product.Description,
+		Price:       product.Price,
+		CategoryID:  product.CategoryID,
+		ImageURL:    product.ImageURL,
+		Quantity:    product.Quantity,
 	}, nil
 }
 

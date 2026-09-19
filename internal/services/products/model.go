@@ -7,6 +7,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
+// Base model
 type Product struct {
 	bun.BaseModel `bun:"table:products,alias:p"`
 
@@ -24,6 +25,7 @@ type Product struct {
 	UpdatedAt time.Time `bun:"updated_at,notnull,default:current_timestamp"`
 }
 
+// List product model
 type ProductListItem struct {
 	bun.BaseModel `bun:"table:products,alias:p"`
 

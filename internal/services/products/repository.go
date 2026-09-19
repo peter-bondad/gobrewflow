@@ -12,7 +12,7 @@ import (
 
 type ProductRepository interface {
 	InsertProduct(ctx context.Context, db bun.IDB, product *Product) error
-	FindByID(ctx context.Context, id uuid.UUID) (*Product, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*ProductListItem, error)
 	FindBySKU(ctx context.Context, sku string) (*Product, error)
 	ExistsByName(ctx context.Context, name string) (bool, error)
 	ListProducts(ctx context.Context, params ProductListParams) (*ProductListResult, error)
@@ -35,13 +35,31 @@ func (r *productRepository) InsertProduct(ctx context.Context, db bun.IDB, produ
 	return err
 }
 
-func (r *productRepository) FindByID(ctx context.Context, id uuid.UUID) (*Product, error) {
-	product := new(Product)
-	err := r.db.NewSelect().Model(product).Where("id = ?", id).Scan(ctx)
+func (r *productRepository) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*ProductListItem, error) {
+	product := new(ProductListItem)
+
+	err := r.db.NewSelect().
+		Model(product).
+		ColumnExpr("p.id").
+		ColumnExpr("p.name").
+		ColumnExpr("p.sku").
+		ColumnExpr("p.description").
+		ColumnExpr("p.price").
+		ColumnExpr("p.category_id").
+		ColumnExpr("p.image_url").
+		ColumnExpr("i.quantity").
+		Join("JOIN inventory AS i ON i.product_id = p.id").
+		Where("p.id = ?", id).
+		Where("p.is_active = ?", true).
+		Scan(ctx)
+
 	if err != nil {
 		return nil, err
-
 	}
+
 	return product, nil
 }
 

@@ -1,6 +1,7 @@
 package products
 
 import (
+	"gobrewflow/internal/utils"
 	"gobrewflow/shared"
 	"net/http"
 
@@ -81,7 +82,12 @@ func (h *productHandler) FindProductByID(c *gin.Context) {
 		return
 	}
 
-	product, err := h.service.FindByID(c.Request.Context(), id)
+	productID, err := utils.ParseUUID(id)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	product, err := h.service.GetProduct(c.Request.Context(), productID)
 	if err != nil {
 		c.Error(err)
 		return

@@ -106,7 +106,7 @@ func (s *ordersService) CreateOrder(
 	}
 
 	// Load products and validate inventory.
-	productMap := make(map[uuid.UUID]*products.Product, len(requestedQty))
+	productMap := make(map[uuid.UUID]*products.ProductListItem, len(requestedQty))
 	var insufficientStock []InsufficientStockItem
 
 	for productID, quantity := range requestedQty {
