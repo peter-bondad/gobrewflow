@@ -63,13 +63,21 @@ func (r *productRepository) ExistsByName(ctx context.Context, name string) (bool
 }
 
 type ProductListParams struct {
+	Search   string
 	Name     string
 	SKU      string
 	Category string
-	IsActive *bool
-	Page     int
-	Limit    int
-	Offset   int
+	IsActive bool
+
+	MinPrice int64
+	MaxPrice int64
+
+	MinQuantity *int64
+	MaxQuantity *int64
+
+	Page   int
+	Limit  int
+	Offset int
 }
 
 type ProductListResult struct {
@@ -77,27 +85,101 @@ type ProductListResult struct {
 	Total int
 }
 
-func (r *productRepository) ListProducts(ctx context.Context, params ProductListParams) (*ProductListResult, error) {
-	products := make([]ProductListItem, 0) // Initialize an empty slice to hold the products instead of a pointer to a slice
+func (r *productRepository) ListProducts(
+	ctx context.Context,
+	params ProductListParams,
+) (*ProductListResult, error) {
+	products := make([]ProductListItem, 0)
 
-	query := r.db.NewSelect().Model(&products)
+	query := r.db.NewSelect().
+		Model(&products).
+		TableExpr("products AS product").
+		ColumnExpr("product.id").
+		ColumnExpr("product.name").
+		ColumnExpr("product.sku").
+		ColumnExpr("product.description").
+		ColumnExpr("product.price").
+		ColumnExpr("product.category_id").
+		ColumnExpr("product.image_url").
+		ColumnExpr("i.quantity").
+		Join("JOIN inventory AS i ON i.product_id = product.id").
+		Where("product.is_active = ?", true)
 
+	// General search
+	if params.Search != "" {
+		search := "%" + params.Search + "%"
+
+		query = query.Where(
+			`(
+				product.name ILIKE ?
+				OR product.sku ILIKE ?
+				OR product.description ILIKE ?
+			)`,
+			search,
+			search,
+			search,
+		)
+	}
+
+	// Field-specific filters
 	if params.Name != "" {
-		query = query.Where("name ILIKE ?", "%"+params.Name+"%")
+		query = query.Where(
+			"product.name ILIKE ?",
+			"%"+params.Name+"%",
+		)
 	}
 
 	if params.SKU != "" {
-		query = query.Where("sku ILIKE ?", "%"+params.SKU+"%")
+		query = query.Where(
+			"product.sku ILIKE ?",
+			"%"+params.SKU+"%",
+		)
 	}
 
 	if params.Category != "" {
-		query = query.Where("category_id = ?", params.Category)
+		query = query.Where(
+			"product.category_id = ?",
+			params.Category,
+		)
 	}
 
-	if params.IsActive != nil {
-		query = query.Where("is_active = ?", *params.IsActive)
+	// Price filters
+	if params.MinPrice > 0 {
+		query = query.Where(
+			"product.price >= ?",
+			params.MinPrice,
+		)
 	}
 
+	if params.MaxPrice > 0 {
+		query = query.Where(
+			"product.price <= ?",
+			params.MaxPrice,
+		)
+	}
+
+	// Inventory quantity filters
+	if params.MinQuantity != nil {
+		query = query.Where(
+			"i.quantity >= ?",
+			*params.MinQuantity,
+		)
+	}
+
+	if params.MaxQuantity != nil {
+		query = query.Where(
+			"i.quantity <= ?",
+			*params.MaxQuantity,
+		)
+	}
+
+	// Count before pagination
+	total, err := query.Clone().Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pagination
 	if params.Limit > 0 {
 		query = query.Limit(params.Limit)
 	}
@@ -106,24 +188,18 @@ func (r *productRepository) ListProducts(ctx context.Context, params ProductList
 		query = query.Offset(params.Offset)
 	}
 
-	total, err := query.Clone().Count(ctx)
-	if err != nil {
-		return &ProductListResult{}, err
-	}
-
-	err = query.Order("name ASC").
-		Limit(params.Limit).
-		Offset(params.Offset).
+	// Fetch results
+	err = query.
+		Order("product.name ASC").
 		Scan(ctx)
 	if err != nil {
-		return &ProductListResult{}, err
+		return nil, err
 	}
 
 	return &ProductListResult{
 		Data:  products,
 		Total: total,
 	}, nil
-
 }
 
 type UpdateProductParams struct {

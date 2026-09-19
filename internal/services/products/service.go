@@ -184,13 +184,21 @@ func (s *productService) FindBySKU(ctx context.Context, sku string) (*ProductOut
 }
 
 type ProductListInput struct {
+	Search   string
 	Name     string
+	SKU      string
 	Category string
-	IsActive *bool
-	Page     int
-	Limit    int
-	Offset   int
+
+	MinPrice int64
+	MaxPrice int64
+
+	MinQuantity *int64
+	MaxQuantity *int64
+
+	Page  int
+	Limit int
 }
+
 type ProductListOutput struct {
 	Data       []ProductListItem
 	Page       int
@@ -199,27 +207,23 @@ type ProductListOutput struct {
 	TotalPages int
 }
 
-func (s *productService) ListProducts(ctx context.Context, input ProductListInput) (ProductListOutput, error) {
-	if input.Limit <= 0 {
-		input.Limit = 10
-	}
-
-	if input.Limit > 100 {
-		input.Limit = 100
-	}
-
-	if input.Page <= 0 {
-		input.Page = 1
-	}
-
+func (s *productService) ListProducts(
+	ctx context.Context,
+	input ProductListInput,
+) (ProductListOutput, error) {
 	offset := (input.Page - 1) * input.Limit
 
 	params := ProductListParams{
-		Name:     input.Name,
-		Category: input.Category,
-		IsActive: input.IsActive,
-		Limit:    input.Limit,
-		Offset:   offset,
+		Search:      input.Search,
+		Name:        input.Name,
+		SKU:         input.SKU,
+		Category:    input.Category,
+		MinPrice:    input.MinPrice,
+		MaxPrice:    input.MaxPrice,
+		MinQuantity: input.MinQuantity,
+		MaxQuantity: input.MaxQuantity,
+		Limit:       input.Limit,
+		Offset:      offset,
 	}
 
 	result, err := s.productRepo.ListProducts(ctx, params)

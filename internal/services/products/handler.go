@@ -107,16 +107,33 @@ func (h *productHandler) FindProductBySKU(c *gin.Context) {
 }
 
 type ListProductsRequest struct {
-	Name     string `form:"name"`
-	Category string `form:"category"`
-	IsActive *bool  `form:"is_active"`
-	Page     int    `form:"page"`
-	Limit    int    `form:"limit"`
+	Search      string `form:"search"`
+	Name        string `form:"name"`
+	SKU         string `form:"sku"`
+	Category    string `form:"category"`
+	MinPrice    int64  `form:"min_price"`
+	MaxPrice    int64  `form:"max_price"`
+	MinQuantity *int64 `form:"min_quantity"`
+	MaxQuantity *int64 `form:"max_quantity"`
+	Page        int    `form:"page"`
+	Limit       int    `form:"limit"`
 }
 
 type ListProductsResponse struct {
 	Data       []ProductListItem `json:"data"`
 	Pagination shared.Pagination `json:"pagination"`
+}
+
+type ListProductsData struct {
+	Search      string `form:"search"`
+	Name        string `form:"name"`
+	SKU         string `form:"sku"`
+	Category    string `form:"category"`
+	IsActive    *bool  `form:"is_active"`
+	MinPrice    int64  `form:"min_price"`
+	MaxPrice    int64  `form:"max_price"`
+	MinQuantity *int64 `form:"min_quantity"`
+	MaxQuantity *int64 `form:"max_quantity"`
 }
 
 func (h *productHandler) ListProducts(c *gin.Context) {
@@ -146,13 +163,22 @@ func (h *productHandler) ListProducts(c *gin.Context) {
 	}
 
 	input := ProductListInput{
-		Name:     req.Name,
-		Category: req.Category,
-		IsActive: req.IsActive,
-		Page:     req.Page,
+		Search:      req.Search,
+		Name:        req.Name,
+		SKU:         req.SKU,
+		Category:    req.Category,
+		MinPrice:    req.MinPrice,
+		MaxPrice:    req.MaxPrice,
+		MinQuantity: req.MinQuantity,
+		MaxQuantity: req.MaxQuantity,
+		Page:        req.Page,
+		Limit:       req.Limit,
 	}
 
-	productsData, err := h.service.ListProducts(c.Request.Context(), input)
+	productsData, err := h.service.ListProducts(
+		c.Request.Context(),
+		input,
+	)
 	if err != nil {
 		c.Error(err)
 		return
