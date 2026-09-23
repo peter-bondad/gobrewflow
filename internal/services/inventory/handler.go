@@ -97,8 +97,7 @@ func (h *inventoryHandler) GetInventoryByProductID(c *gin.Context) {
 }
 
 type AdjustStockRequest struct {
-	Quantity int         `json:"quantity" binding:"required,gt=0"`
-	Change   StockChange `json:"change" binding:"required"`
+	Quantity int `json:"quantity" binding:"gte=0"`
 }
 
 type AdjustStockResponse struct {
@@ -118,9 +117,7 @@ func (h *inventoryHandler) AdjustStock(c *gin.Context) {
 
 	productID, err := uuid.Parse(param.ProductID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid product id",
-		})
+		c.Error(err)
 		return
 	}
 
@@ -136,7 +133,6 @@ func (h *inventoryHandler) AdjustStock(c *gin.Context) {
 		productID,
 		AdjustStockInput{
 			Quantity: req.Quantity,
-			Change:   req.Change,
 		},
 	)
 	if err != nil {
@@ -144,10 +140,5 @@ func (h *inventoryHandler) AdjustStock(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, &AdjustStockResponse{
-		ProductID:   output.ProductID,
-		BeforeStock: output.BeforeStock,
-		Adjustment:  output.Adjustment,
-		AfterStock:  output.AfterStock,
-	})
+	c.JSON(http.StatusOK, output)
 }

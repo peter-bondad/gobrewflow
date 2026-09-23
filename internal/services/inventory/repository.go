@@ -22,6 +22,11 @@ type InventoryRepository interface {
 	) (*Inventory, error)
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
 	FindInventoryByProductID(ctx context.Context, productID uuid.UUID) (*Inventory, error)
+	SetStock(
+		ctx context.Context,
+		db bun.IDB,
+		params SetStockParams,
+	) (*Inventory, error)
 }
 
 type inventoryRepository struct {
@@ -171,6 +176,41 @@ func (r *inventoryRepository) FindInventoryByProductID(
 	err := r.db.NewSelect().
 		Model(inventory).
 		Where("product_id = ?", productID).
+		Scan(ctx)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrInventoryNotFound
+		}
+
+		return nil, err
+	}
+
+	return inventory, nil
+}
+
+type SetStockParams struct {
+	ProductID uuid.UUID
+	Quantity  int
+}
+
+func (r *inventoryRepository) SetStock(
+	ctx context.Context,
+	db bun.IDB,
+	params SetStockParams,
+) (*Inventory, error) {
+	if params.Quantity < 0 {
+		return nil, ErrInvalidQuantity
+	}
+
+	inventory := new(Inventory)
+
+	err := db.NewUpdate().
+		Model(inventory).
+		Set("quantity = ?", params.Quantity).
+		Set("updated_at = NOW()").
+		Where("product_id = ?", params.ProductID).
+		Returning("*").
 		Scan(ctx)
 
 	if err != nil {
