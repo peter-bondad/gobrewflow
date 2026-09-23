@@ -10,6 +10,7 @@ import (
 type InventoryHandler interface {
 	FindByProductID(ctx *gin.Context)
 	GetInventoryByProductID(ctx *gin.Context)
+	AdjustStock(c *gin.Context)
 }
 
 type inventoryHandler struct {
@@ -22,10 +23,6 @@ func NewInventoryHandler(inventoryService InventoryService) InventoryHandler {
 	}
 }
 
-type FindByProductIDRequestParam struct {
-	ProductInventoryID string `uri:"productInventoryId" binding:"required,uuid"`
-}
-
 type ProductInventoryResponse struct {
 	ProductID   uuid.UUID
 	Quantity    int
@@ -35,13 +32,13 @@ type ProductInventoryResponse struct {
 }
 
 func (h *inventoryHandler) FindByProductID(c *gin.Context) {
-	var param FindByProductIDRequestParam
+	var param GetInventoryByProductIDRequestParam
 
 	if err := c.ShouldBindUri(&param); err != nil {
 		c.Error(err)
 		return
 	}
-	productInventoryID, err := uuid.Parse(param.ProductInventoryID)
+	productInventoryID, err := uuid.Parse(param.ProductID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid invitation id"})
 		return
@@ -96,5 +93,61 @@ func (h *inventoryHandler) GetInventoryByProductID(c *gin.Context) {
 	c.JSON(200, &ProductInventoryQuantityResponse{
 		ProductID: inventory.ProductID,
 		Quantity:  inventory.Quantity,
+	})
+}
+
+type AdjustStockRequest struct {
+	Quantity int         `json:"quantity" binding:"required,gt=0"`
+	Change   StockChange `json:"change" binding:"required"`
+}
+
+type AdjustStockResponse struct {
+	ProductID   uuid.UUID `json:"productId"`
+	BeforeStock int       `json:"beforeStock"`
+	Adjustment  int       `json:"adjustment"`
+	AfterStock  int       `json:"afterStock"`
+}
+
+func (h *inventoryHandler) AdjustStock(c *gin.Context) {
+	var param GetInventoryByProductIDRequestParam
+
+	if err := c.ShouldBindUri(&param); err != nil {
+		c.Error(err)
+		return
+	}
+
+	productID, err := uuid.Parse(param.ProductID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid product id",
+		})
+		return
+	}
+
+	var req AdjustStockRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err)
+		return
+	}
+
+	output, err := h.service.AdjustStock(
+		c.Request.Context(),
+		productID,
+		AdjustStockInput{
+			Quantity: req.Quantity,
+			Change:   req.Change,
+		},
+	)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, &AdjustStockResponse{
+		ProductID:   output.ProductID,
+		BeforeStock: output.BeforeStock,
+		Adjustment:  output.Adjustment,
+		AfterStock:  output.AfterStock,
 	})
 }

@@ -89,6 +89,7 @@ func (s *Server) protectedRoutes(
 
 	// Inventory
 	inventoryAPI.GET("/:productId", inventoryHandler.GetInventoryByProductID)
+	inventoryAPI.POST("/:productId/adjust", inventoryHandler.AdjustStock)
 
 	// Orders
 	ordersAPI.POST("/", ordersHandler.CreateOrder)

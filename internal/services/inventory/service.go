@@ -17,9 +17,11 @@ type InventoryService interface {
 	) error
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryOutput, error)
 	GetInventoryByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryQuantityResponse, error)
+	AdjustStock(ctx context.Context, productID uuid.UUID, input AdjustStockInput) (AdjustStockOutput, error)
 }
 
 type inventoryService struct {
+	db            bun.IDB
 	inventoryRepo InventoryRepository
 }
 
@@ -75,5 +77,57 @@ func (s inventoryService) GetInventoryByProductID(ctx context.Context, productID
 	return &ProductInventoryQuantityResponse{
 		ProductID: inventory.ProductID,
 		Quantity:  inventory.Quantity,
+	}, nil
+}
+
+type AdjustStockInput struct {
+	Quantity int         `json:"quantity"`
+	Change   StockChange `json:"change"`
+}
+
+type AdjustStockOutput struct {
+	ProductID   uuid.UUID `json:"product_id"`
+	BeforeStock int       `json:"before_stock"`
+	Adjustment  int       `json:"adjustment"`
+	AfterStock  int       `json:"after_stock"`
+}
+
+func (s inventoryService) AdjustStock(
+	ctx context.Context,
+	productID uuid.UUID,
+	input AdjustStockInput,
+) (AdjustStockOutput, error) {
+
+	inventory, err := s.inventoryRepo.ChangeStock(
+		ctx,
+		s.db,
+		StockParams{
+			ProductID: productID,
+			Quantity:  input.Quantity,
+			Change:    input.Change,
+		},
+	)
+	if err != nil {
+		return AdjustStockOutput{}, err
+	}
+
+	adjustment := input.Quantity
+
+	switch input.Change {
+	case StockIncrease:
+		// Quantity stays positive.
+		adjustment = +input.Quantity
+	case StockDecrease:
+		// Represent deduction as a negative adjustment.
+		adjustment = -input.Quantity
+	default:
+		return AdjustStockOutput{}, ErrInvalidStockChange
+	}
+
+	return AdjustStockOutput{
+		ProductID:   productID,
+		BeforeStock: inventory.Quantity - adjustment,
+		Adjustment:  adjustment,
+		AfterStock:  inventory.Quantity,
 	}, nil
 }
