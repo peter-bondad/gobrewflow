@@ -91,7 +91,6 @@ type AdjustStockInput struct {
 type AdjustStockOutput struct {
 	ProductID   uuid.UUID `json:"productId"`
 	BeforeStock int       `json:"beforeStock"`
-	Adjustment  int       `json:"adjustment"`
 	AfterStock  int       `json:"afterStock"`
 }
 
@@ -111,11 +110,9 @@ func (s *inventoryService) AdjustStock(
 
 	beforeStock := inventory.Quantity
 	afterStock := input.Quantity
-	adjustment := afterStock - beforeStock
 
 	_, err = s.inventoryRepo.SetStock(
 		ctx,
-		s.db,
 		SetStockParams{
 			ProductID: productID,
 			Quantity:  afterStock,
@@ -128,7 +125,6 @@ func (s *inventoryService) AdjustStock(
 	return &AdjustStockOutput{
 		ProductID:   productID,
 		BeforeStock: beforeStock,
-		Adjustment:  adjustment,
 		AfterStock:  afterStock,
 	}, nil
 }

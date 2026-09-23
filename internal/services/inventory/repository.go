@@ -24,7 +24,6 @@ type InventoryRepository interface {
 	FindInventoryByProductID(ctx context.Context, productID uuid.UUID) (*Inventory, error)
 	SetStock(
 		ctx context.Context,
-		db bun.IDB,
 		params SetStockParams,
 	) (*Inventory, error)
 }
@@ -196,7 +195,6 @@ type SetStockParams struct {
 
 func (r *inventoryRepository) SetStock(
 	ctx context.Context,
-	db bun.IDB,
 	params SetStockParams,
 ) (*Inventory, error) {
 	if params.Quantity < 0 {
@@ -205,7 +203,7 @@ func (r *inventoryRepository) SetStock(
 
 	inventory := new(Inventory)
 
-	err := db.NewUpdate().
+	err := r.db.NewUpdate().
 		Model(inventory).
 		Set("quantity = ?", params.Quantity).
 		Set("updated_at = NOW()").
