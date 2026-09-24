@@ -1,44 +1,21 @@
--- V2: Add stock state tracking to inventory movements
+ALTER TABLE inventory_movements
+    ADD COLUMN before_stock INTEGER,
+    ADD COLUMN after_stock INTEGER;
 
-CREATE TABLE inventory_movements (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+TRUNCATE TABLE inventory_movements;
 
-    product_id UUID NOT NULL,
+ALTER TABLE inventory_movements
+    ALTER COLUMN before_stock SET NOT NULL,
+    ALTER COLUMN after_stock SET NOT NULL;
 
-    type VARCHAR(20) NOT NULL,
-
-    quantity INTEGER NOT NULL,
-
-    before_stock INTEGER NOT NULL,
-
-    after_stock INTEGER NOT NULL,
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT fk_inventory_movements_product
-        FOREIGN KEY (product_id)
-        REFERENCES products (id)
-        ON DELETE RESTRICT,
-
-    CONSTRAINT chk_inventory_movements_quantity_positive
-        CHECK (quantity > 0),
-
-    CONSTRAINT chk_inventory_movements_before_stock_non_negative
+ALTER TABLE inventory_movements
+    ADD CONSTRAINT chk_inventory_movements_before_stock_non_negative
         CHECK (before_stock >= 0),
 
-    CONSTRAINT chk_inventory_movements_after_stock_non_negative
+    ADD CONSTRAINT chk_inventory_movements_after_stock_non_negative
         CHECK (after_stock >= 0),
 
-    CONSTRAINT chk_inventory_movements_type
-        CHECK (type IN (
-            'RECEIVED',
-            'SOLD',
-            'RETURNED',
-            'DAMAGED',
-            'ADJUSTED'
-        )),
-
-    CONSTRAINT chk_inventory_movements_stock_change
+    ADD CONSTRAINT chk_inventory_movements_stock_change
         CHECK (
             (
                 type IN ('RECEIVED', 'RETURNED')
@@ -54,5 +31,4 @@ CREATE TABLE inventory_movements (
                 type = 'ADJUSTED'
                 AND ABS(after_stock - before_stock) = quantity
             )
-        )
-);
+        );
