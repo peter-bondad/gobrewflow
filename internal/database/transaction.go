@@ -29,9 +29,8 @@ func (m *txManager) WithTx(
 		return err
 	}
 
-	defer tx.Rollback()
-
 	if err := fn(tx); err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 
