@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"gobrewflow/internal/database"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -20,18 +21,25 @@ type InventoryService interface {
 	AdjustStock(
 		ctx context.Context,
 		productID uuid.UUID,
-		input AdjustStockInput,
+		adjustedStock int,
 	) (*AdjustStockOutput, error)
 }
 
-type inventoryService struct {
-	db            bun.IDB
-	inventoryRepo InventoryRepository
+type MovementRecorder interface {
+	RecordAdjustment(ctx context.Context, tx bun.IDB, productID uuid.UUID, beforeStock, afterStock int) error
 }
 
-func NewInventoryService(inventoryRepo InventoryRepository) InventoryService {
+type inventoryService struct {
+	inventoryRepo    InventoryRepository
+	movementRecorder MovementRecorder
+	txManager        database.TxManager
+}
+
+func NewInventoryService(inventoryRepo InventoryRepository, movementRecorder MovementRecorder, txManager database.TxManager) InventoryService {
 	return &inventoryService{
-		inventoryRepo: inventoryRepo,
+		inventoryRepo:    inventoryRepo,
+		movementRecorder: movementRecorder,
+		txManager:        txManager,
 	}
 }
 
@@ -84,22 +92,18 @@ func (s inventoryService) GetInventoryByProductID(ctx context.Context, productID
 	}, nil
 }
 
-type AdjustStockInput struct {
-	Quantity int
-}
-
 type AdjustStockOutput struct {
-	ProductID   uuid.UUID `json:"productId"`
-	BeforeStock int       `json:"beforeStock"`
-	AfterStock  int       `json:"afterStock"`
+	ProductID   uuid.UUID
+	BeforeStock int
+	AfterStock  int
 }
 
 func (s *inventoryService) AdjustStock(
 	ctx context.Context,
 	productID uuid.UUID,
-	input AdjustStockInput,
+	adjustedStock int,
 ) (*AdjustStockOutput, error) {
-	if input.Quantity < 0 {
+	if adjustedStock < 0 {
 		return nil, ErrInvalidQuantity
 	}
 
@@ -109,15 +113,29 @@ func (s *inventoryService) AdjustStock(
 	}
 
 	beforeStock := inventory.Quantity
-	afterStock := input.Quantity
 
-	_, err = s.inventoryRepo.SetStock(
-		ctx,
-		SetStockParams{
-			ProductID: productID,
-			Quantity:  afterStock,
-		},
-	)
+	err = s.txManager.WithTx(ctx, func(tx bun.IDB) error {
+		_, err := s.inventoryRepo.SetStock(
+			ctx,
+			tx,
+			SetStockParams{
+				ProductID: productID,
+				Quantity:  adjustedStock,
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		return s.movementRecorder.RecordAdjustment(
+			ctx,
+			tx,
+			productID,
+			beforeStock,
+			adjustedStock,
+		)
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +143,6 @@ func (s *inventoryService) AdjustStock(
 	return &AdjustStockOutput{
 		ProductID:   productID,
 		BeforeStock: beforeStock,
-		AfterStock:  afterStock,
+		AfterStock:  adjustedStock,
 	}, nil
 }

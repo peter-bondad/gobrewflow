@@ -56,7 +56,6 @@ type Container struct {
 }
 
 func NewContainer(db *bun.DB, cfg *config.Config) *Container {
-
 	jwtService := &auth.JWTService{
 		Secret: []byte(cfg.JWT.Secret),
 	}
@@ -65,10 +64,19 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 
 	txManager := database.NewTxManager(db)
 
+	// User
 	userRepo := user.NewUserRepository(db)
-	userService := user.NewUserService(userRepo, jwtService, tokenBlacklistRepo)
+	userService := user.NewUserService(
+		userRepo,
+		jwtService,
+		tokenBlacklistRepo,
+	)
 	userHandler := user.NewUserHandler(userService)
+
+	// Account
 	accountRepo := account.NewAccountRepository(db)
+
+	// Invitations
 	invitationRepo := invitations.NewInvitationRepository(db)
 	invitationService := invitations.NewInvitationService(
 		db,
@@ -77,62 +85,77 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		accountRepo,
 		cfg.Invitation,
 	)
-
 	invitationHandler := invitations.NewInvitationHandler(
 		invitationService,
 	)
 
+	// Categories
 	categoriesRepo := categories.NewCategoryRepository(db)
 	categoriesService := categories.NewCategoryService(categoriesRepo)
 	categoriesHandler := categories.NewCategoryHandler(categoriesService)
 
+	// Inventory
 	inventoryRepo := inventory.NewInventoryRepository(db)
-	inventoryService := inventory.NewInventoryService(inventoryRepo)
-	inventoryHandler := inventory.NewInventoryHandler(inventoryService)
 
-	productsRepo := products.NewProductRepository(db)
-	productService := products.NewProductService(productsRepo, categoriesRepo, inventoryService, txManager)
-	productsHandler := products.NewProductHandler(productService)
-
+	// Inventory Movements
 	inventoryMovementsRepo := inventory_movements.NewInventoryMovementsRepository(db)
 	inventoryMovementService := inventory_movements.NewInventoryMovementsService(
 		inventoryMovementsRepo,
 		inventoryRepo,
+		txManager,
 	)
 
+	// Inventory Service
+	inventoryService := inventory.NewInventoryService(
+		inventoryRepo,
+		inventoryMovementService,
+		txManager,
+	)
+	inventoryHandler := inventory.NewInventoryHandler(inventoryService)
+
+	// Products
+	productsRepo := products.NewProductRepository(db)
+	productService := products.NewProductService(
+		productsRepo,
+		categoriesRepo,
+		inventoryService,
+		txManager,
+	)
+	productsHandler := products.NewProductHandler(productService)
+
+	// Order Items
 	orderItemsRepo := order_items.NewOrderItemRepository(db)
 	orderItemsService := order_items.NewOrderItemsService(orderItemsRepo)
 
+	// Orders
 	ordersRepo := orders.NewOrderItemRepository(db)
-	ordersService := orders.NewOrderService(ordersRepo, productsRepo, inventoryRepo, inventoryMovementsRepo, orderItemsService)
+	ordersService := orders.NewOrderService(
+		ordersRepo,
+		productsRepo,
+		inventoryRepo,
+		inventoryMovementsRepo,
+		orderItemsService,
+	)
 	ordersHandler := orders.NewOrdesHandler(ordersService)
 
 	return &Container{
-		InvitationRepo:    invitationRepo,
-		InvitationService: invitationService,
-		InvitationHandler: invitationHandler,
-
-		UserRepo:    userRepo,
-		UserHandler: userHandler,
-
-		AccountRepo: accountRepo,
-
-		JwtService: jwtService,
-
-		TXManager: txManager,
-
-		TokenBlacklistRepo: tokenBlacklistRepo,
-		CategoriesHandler:  categoriesHandler,
-		ProductsHandler:    productsHandler,
-
+		InvitationHandler:         invitationHandler,
+		InvitationService:         invitationService,
+		InvitationRepo:            invitationRepo,
+		UserRepo:                  userRepo,
+		UserHandler:               userHandler,
+		AccountRepo:               accountRepo,
+		JwtService:                jwtService,
+		TokenBlacklistRepo:        tokenBlacklistRepo,
+		TXManager:                 txManager,
+		CategoriesHandler:         categoriesHandler,
+		ProductsHandler:           productsHandler,
 		InventoryHandler:          inventoryHandler,
 		InventoryMovementsService: inventoryMovementService,
-
-		OrdersHandler: ordersHandler,
-		OrdersService: ordersService,
-		OrdersRepo:    ordersRepo,
-
-		OrderItemsService: orderItemsService,
-		OrderItemsRepo:    orderItemsRepo,
+		OrdersHandler:             ordersHandler,
+		OrdersService:             ordersService,
+		OrdersRepo:                ordersRepo,
+		OrderItemsService:         orderItemsService,
+		OrderItemsRepo:            orderItemsRepo,
 	}
 }

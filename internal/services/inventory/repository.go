@@ -12,18 +12,19 @@ import (
 type InventoryRepository interface {
 	InsertInitialInventory(
 		ctx context.Context,
-		db bun.IDB,
+		tx bun.IDB,
 		productID uuid.UUID,
 	) error
 	ChangeStock(
 		ctx context.Context,
-		db bun.IDB,
+		tx bun.IDB,
 		params StockParams,
 	) (*Inventory, error)
 	FindByProductID(ctx context.Context, productID uuid.UUID) (*ProductInventoryResult, error)
 	FindInventoryByProductID(ctx context.Context, productID uuid.UUID) (*Inventory, error)
 	SetStock(
 		ctx context.Context,
+		tx bun.IDB,
 		params SetStockParams,
 	) (*Inventory, error)
 }
@@ -195,6 +196,7 @@ type SetStockParams struct {
 
 func (r *inventoryRepository) SetStock(
 	ctx context.Context,
+	tx bun.IDB,
 	params SetStockParams,
 ) (*Inventory, error) {
 	if params.Quantity < 0 {
@@ -203,7 +205,7 @@ func (r *inventoryRepository) SetStock(
 
 	inventory := new(Inventory)
 
-	err := r.db.NewUpdate().
+	err := tx.NewUpdate().
 		Model(inventory).
 		Set("quantity = ?", params.Quantity).
 		Set("updated_at = NOW()").

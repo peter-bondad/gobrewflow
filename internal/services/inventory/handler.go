@@ -97,7 +97,7 @@ func (h *inventoryHandler) GetInventoryByProductID(c *gin.Context) {
 }
 
 type AdjustStockRequest struct {
-	Quantity int `json:"quantity" binding:"gte=0"`
+	AdjustedStock int `json:"adjusted_stock" binding:"gte=0"`
 }
 
 type AdjustStockResponse struct {
@@ -131,9 +131,7 @@ func (h *inventoryHandler) AdjustStock(c *gin.Context) {
 	output, err := h.service.AdjustStock(
 		c.Request.Context(),
 		productID,
-		AdjustStockInput{
-			Quantity: req.Quantity,
-		},
+		req.AdjustedStock,
 	)
 	if err != nil {
 		c.Error(err)

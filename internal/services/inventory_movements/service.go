@@ -23,10 +23,15 @@ type inventoryMovementsService struct {
 	txManager     database.TxManager
 }
 
-func NewInventoryMovementsService(movementsRepo InventoryMovementsRepository, inventoryRepo inventory.InventoryRepository) InventoryMovementsService {
+func NewInventoryMovementsService(
+	movementsRepo InventoryMovementsRepository,
+	inventoryRepo inventory.InventoryRepository,
+	txManager database.TxManager,
+) *inventoryMovementsService {
 	return &inventoryMovementsService{
 		movementsRepo: movementsRepo,
 		inventoryRepo: inventoryRepo,
+		txManager:     txManager,
 	}
 }
 
@@ -186,4 +191,43 @@ func (s *inventoryMovementsService) ListMovements(ctx context.Context, input Lis
 			TotalPages: totalPages,
 		},
 	}, nil
+}
+
+type RecordAdjustmentInput struct {
+	beforeStock int
+	afterStock  int
+}
+
+func (s *inventoryMovementsService) RecordAdjustment(
+	ctx context.Context,
+	tx bun.IDB,
+	productID uuid.UUID,
+	beforeStock,
+	afterStock int,
+) error {
+	delta := afterStock - beforeStock
+
+	if delta == 0 {
+		return nil
+	}
+
+	movement := &InventoryMovement{
+		ID:          uuid.New(),
+		ProductID:   productID,
+		Type:        InventoryMovementTypeAdjusted,
+		Quantity:    abs(delta),
+		BeforeStock: beforeStock,
+		AfterStock:  afterStock,
+		CreatedAt:   time.Now(),
+	}
+
+	return s.movementsRepo.CreateMovement(ctx, tx, movement)
+}
+
+// helper function
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
