@@ -51,7 +51,7 @@ func (h *inventoryHandler) FindByProductID(c *gin.Context) {
 		return
 	}
 
-	resp := &ProductInventoryResponse{
+	resp := ProductInventoryResponse{
 		ProductID:   productInventoryID,
 		ProductName: productInventory.ProductName,
 		SKU:         productInventory.SKU,
@@ -91,10 +91,11 @@ func (h *inventoryHandler) GetInventoryByProductID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, &ProductInventoryQuantityResponse{
+	resp := ProductInventoryQuantityResponse{
 		ProductID: inventory.ProductID,
 		Quantity:  inventory.Quantity,
-	})
+	}
+	c.JSON(200, resp)
 }
 
 type AdjustStockRequest struct {
@@ -135,7 +136,7 @@ func (h *inventoryHandler) AdjustStock(c *gin.Context) {
 		req.AdjustedStock,
 	)
 
-	resp := &AdjustStockResponse{
+	resp := AdjustStockResponse{
 		ProductID:   productID,
 		Adjustment:  output.AfterStock - output.BeforeStock,
 		BeforeStock: output.BeforeStock,
@@ -191,7 +192,7 @@ func (h *inventoryHandler) ReceiveStock(c *gin.Context) {
 		return
 	}
 
-	resp := &ReceiveStockResponse{
+	resp := ReceiveStockResponse{
 		ProductID:   productID,
 		Adjustment:  output.AfterStock - output.BeforeStock,
 		BeforeStock: output.BeforeStock,
