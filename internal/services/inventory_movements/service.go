@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"gobrewflow/internal/database"
 	"gobrewflow/internal/services/inventory"
 	"gobrewflow/shared"
 
@@ -13,114 +12,66 @@ import (
 )
 
 type InventoryMovementsService interface {
-	CreateMovement(ctx context.Context, input CreateMovementInput) (*InventoryMovementOutput, error)
+	RecordMovement(
+		ctx context.Context,
+		tx bun.IDB,
+		input inventory.RecordMovementInput,
+	) error
+
 	ListMovements(ctx context.Context, input ListMovementsInput) (ListMovementsOutput, error)
 }
 
 type inventoryMovementsService struct {
 	movementsRepo InventoryMovementsRepository
-	inventoryRepo inventory.InventoryRepository
-	txManager     database.TxManager
 }
 
 func NewInventoryMovementsService(
 	movementsRepo InventoryMovementsRepository,
-	inventoryRepo inventory.InventoryRepository,
-	txManager database.TxManager,
 ) *inventoryMovementsService {
 	return &inventoryMovementsService{
 		movementsRepo: movementsRepo,
-		inventoryRepo: inventoryRepo,
-		txManager:     txManager,
 	}
 }
 
-type CreateMovementInput struct {
-	ProductID uuid.UUID
-	Type      InventoryMovementType
-	Quantity  int
+func (s *inventoryMovementsService) RecordMovement(
+	ctx context.Context,
+	tx bun.IDB,
+	input inventory.RecordMovementInput,
+) error {
+	if input.Quantity <= 0 {
+		return ErrInvalidQuantity
+	}
+
+	if !isValidMovementType(input.Type) {
+		return ErrInvalidMovementType
+	}
+
+	movement := &InventoryMovement{
+		ID:          uuid.New(),
+		ProductID:   input.ProductID,
+		Type:        input.Type,
+		Quantity:    input.Quantity,
+		BeforeStock: input.BeforeStock,
+		AfterStock:  input.AfterStock,
+		CreatedAt:   time.Now(),
+	}
+
+	return s.movementsRepo.CreateMovement(ctx, tx, movement)
 }
 
 type InventoryMovementOutput struct {
 	ID        uuid.UUID
 	ProductID uuid.UUID
-	Type      InventoryMovementType
+	Type      inventory.MovementType
 	Quantity  int
 	CreatedAt time.Time
 }
 
-func (s *inventoryMovementsService) CreateMovement(
-	ctx context.Context,
-	input CreateMovementInput,
-) (*InventoryMovementOutput, error) {
-	if input.Quantity <= 0 {
-		return nil, ErrInvalidQuantity
-	}
-
-	if !isValidMovementType(input.Type) {
-		return nil, ErrInvalidMovementType
-	}
-
-	movement := &InventoryMovement{
-		ID:        uuid.New(),
-		ProductID: input.ProductID,
-		Type:      input.Type,
-		Quantity:  input.Quantity,
-		CreatedAt: time.Now(),
-	}
-
-	err := s.txManager.WithTx(ctx, func(tx bun.IDB) error {
-		switch input.Type {
-		case InventoryMovementTypeReceived,
-			InventoryMovementTypeReturned:
-
-			_, err := s.inventoryRepo.ChangeStock(ctx, tx, inventory.StockParams{
-				ProductID: input.ProductID,
-				Quantity:  input.Quantity,
-				Change:    inventory.StockIncrease,
-			})
-			if err != nil {
-				return err
-			}
-
-		case InventoryMovementTypeSold,
-			InventoryMovementTypeDamaged:
-
-			_, err := s.inventoryRepo.ChangeStock(ctx, tx, inventory.StockParams{
-				ProductID: input.ProductID,
-				Quantity:  input.Quantity,
-				Change:    inventory.StockDecrease,
-			})
-			if err != nil {
-				return err
-			}
-
-		case InventoryMovementTypeAdjusted:
-			// Define adjustment behavior separately.
-			// Currenly planning
-		}
-
-		return s.movementsRepo.CreateMovement(ctx, tx, movement)
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &InventoryMovementOutput{
-		ID:        movement.ID,
-		ProductID: movement.ProductID,
-		Type:      movement.Type,
-		Quantity:  movement.Quantity,
-		CreatedAt: movement.CreatedAt,
-	}, nil
-}
-
-func isValidMovementType(t InventoryMovementType) bool {
+func isValidMovementType(t inventory.MovementType) bool {
 	switch t {
-	case InventoryMovementTypeReceived, InventoryMovementTypeSold,
-		InventoryMovementTypeReturned, InventoryMovementTypeDamaged,
-		InventoryMovementTypeAdjusted:
+	case inventory.MovementTypeReceived, inventory.MovementTypeSold,
+		inventory.MovementTypeReturned, inventory.MovementTypeDamaged,
+		inventory.MovementTypeAdjusted:
 		return true
 	}
 	return false
@@ -191,73 +142,4 @@ func (s *inventoryMovementsService) ListMovements(ctx context.Context, input Lis
 			TotalPages: totalPages,
 		},
 	}, nil
-}
-
-type RecordAdjustmentInput struct {
-	beforeStock int
-	afterStock  int
-}
-
-func (s *inventoryMovementsService) RecordAdjustment(
-	ctx context.Context,
-	tx bun.IDB,
-	productID uuid.UUID,
-	beforeStock,
-	afterStock int,
-) error {
-	delta := afterStock - beforeStock
-
-	if delta == 0 {
-		return nil
-	}
-
-	movement := &InventoryMovement{
-		ID:          uuid.New(),
-		ProductID:   productID,
-		Type:        InventoryMovementTypeAdjusted,
-		Quantity:    abs(delta),
-		BeforeStock: beforeStock,
-		AfterStock:  afterStock,
-		CreatedAt:   time.Now(),
-	}
-
-	return s.movementsRepo.CreateMovement(ctx, tx, movement)
-}
-
-// helper function
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
-}
-
-func (s *inventoryMovementsService) RecordReceivedStock(
-	ctx context.Context,
-	tx bun.IDB,
-	productID uuid.UUID,
-	beforeStock,
-	afterStock int,
-) error {
-	delta := afterStock - beforeStock
-
-	if delta == 0 {
-		return nil
-	}
-
-	if delta < 0 {
-		return ErrInvalidQuantity
-	}
-
-	movement := &InventoryMovement{
-		ID:          uuid.New(),
-		ProductID:   productID,
-		Type:        InventoryMovementTypeReceived,
-		Quantity:    delta,
-		BeforeStock: beforeStock,
-		AfterStock:  afterStock,
-		CreatedAt:   time.Now(),
-	}
-
-	return s.movementsRepo.CreateMovement(ctx, tx, movement)
 }

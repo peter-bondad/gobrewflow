@@ -174,7 +174,7 @@ func (s *ordersService) CreateOrder(
 			movement := &inventory_movements.InventoryMovement{
 				ID:        uuid.New(),
 				ProductID: productID,
-				Type:      inventory_movements.InventoryMovementTypeSold,
+				Type:      inventory.MovementTypeSold,
 				Quantity:  quantity,
 				CreatedAt: time.Now(),
 			}

@@ -101,8 +101,6 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	inventoryMovementsRepo := inventory_movements.NewInventoryMovementsRepository(db)
 	inventoryMovementService := inventory_movements.NewInventoryMovementsService(
 		inventoryMovementsRepo,
-		inventoryRepo,
-		txManager,
 	)
 
 	// Inventory Service
