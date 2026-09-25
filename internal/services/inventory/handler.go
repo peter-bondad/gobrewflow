@@ -158,7 +158,7 @@ type ReceiveStockRequest struct {
 type ReceiveStockResponse struct {
 	ProductID   uuid.UUID `json:"productId"`
 	BeforeStock int       `json:"beforeStock"`
-	Adjustment  int       `json:"adjustment"`
+	Received    int       `json:"received"`
 	AfterStock  int       `json:"afterStock"`
 }
 
@@ -195,7 +195,7 @@ func (h *inventoryHandler) ReceiveStock(c *gin.Context) {
 
 	resp := ReceiveStockResponse{
 		ProductID:   productID,
-		Adjustment:  output.AfterStock - output.BeforeStock,
+		Received:    output.AfterStock - output.BeforeStock,
 		BeforeStock: output.BeforeStock,
 		AfterStock:  output.AfterStock,
 	}
@@ -210,7 +210,7 @@ type DamageStockRequest struct {
 type DamageStockResponse struct {
 	ProductID   uuid.UUID `json:"productId"`
 	BeforeStock int       `json:"beforeStock"`
-	Adjustment  int       `json:"adjustment"`
+	Damaged     int       `json:"damaged"`
 	AfterStock  int       `json:"afterStock"`
 }
 
@@ -243,7 +243,7 @@ func (h *inventoryHandler) DamageStock(c *gin.Context) {
 
 	resp := DamageStockResponse{
 		ProductID:   productID,
-		Adjustment:  output.AfterStock - output.BeforeStock,
+		Damaged:     output.AfterStock - output.BeforeStock,
 		BeforeStock: output.BeforeStock,
 		AfterStock:  output.AfterStock,
 	}
