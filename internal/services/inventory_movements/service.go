@@ -231,3 +231,33 @@ func abs(n int) int {
 	}
 	return n
 }
+
+func (s *inventoryMovementsService) RecordReceivedStock(
+	ctx context.Context,
+	tx bun.IDB,
+	productID uuid.UUID,
+	beforeStock,
+	afterStock int,
+) error {
+	delta := afterStock - beforeStock
+
+	if delta == 0 {
+		return nil
+	}
+
+	if delta < 0 {
+		return ErrInvalidQuantity
+	}
+
+	movement := &InventoryMovement{
+		ID:          uuid.New(),
+		ProductID:   productID,
+		Type:        InventoryMovementTypeReceived,
+		Quantity:    delta,
+		BeforeStock: beforeStock,
+		AfterStock:  afterStock,
+		CreatedAt:   time.Now(),
+	}
+
+	return s.movementsRepo.CreateMovement(ctx, tx, movement)
+}

@@ -23,10 +23,16 @@ type InventoryService interface {
 		productID uuid.UUID,
 		adjustedStock int,
 	) (*AdjustStockOutput, error)
+	ReceiveStock(
+		ctx context.Context,
+		productID uuid.UUID,
+		receivedStock int,
+	) (*ReceiveStockOutput, error)
 }
 
 type MovementRecorder interface {
 	RecordAdjustment(ctx context.Context, tx bun.IDB, productID uuid.UUID, beforeStock, afterStock int) error
+	RecordReceivedStock(ctx context.Context, tx bun.IDB, productID uuid.UUID, beforeStock, afterStock int) error
 }
 
 type inventoryService struct {
@@ -144,5 +150,76 @@ func (s *inventoryService) AdjustStock(
 		ProductID:   productID,
 		BeforeStock: beforeStock,
 		AfterStock:  adjustedStock,
+	}, nil
+}
+
+type ReceiveStockOutput struct {
+	ProductID   uuid.UUID
+	BeforeStock int
+	AfterStock  int
+}
+
+func (s *inventoryService) ReceiveStock(
+	ctx context.Context,
+	productID uuid.UUID,
+	receivedStock int,
+) (*ReceiveStockOutput, error) {
+
+	if receivedStock < 0 {
+		return nil, ErrInvalidQuantity
+	}
+
+	if receivedStock == 0 {
+		return nil, nil
+	}
+
+	inventory, err := s.inventoryRepo.FindByProductID(ctx, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	beforeStock := inventory.Quantity
+	afterStock := beforeStock + receivedStock
+
+	delta := afterStock - beforeStock
+
+	if delta <= 0 {
+		return nil, ErrInvalidStockIncrease
+	}
+
+	if afterStock < beforeStock {
+		return nil, ErrStockOverflow
+	}
+
+	err = s.txManager.WithTx(ctx, func(tx bun.IDB) error {
+		_, err := s.inventoryRepo.SetStock(
+			ctx,
+			tx,
+			SetStockParams{
+				ProductID: productID,
+				Quantity:  afterStock,
+			},
+		)
+		if err != nil {
+			return err
+		}
+
+		return s.movementRecorder.RecordReceivedStock(
+			ctx,
+			tx,
+			productID,
+			beforeStock,
+			afterStock,
+		)
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &ReceiveStockOutput{
+		ProductID:   productID,
+		BeforeStock: beforeStock,
+		AfterStock:  afterStock,
 	}, nil
 }
