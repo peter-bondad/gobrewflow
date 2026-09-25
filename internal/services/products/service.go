@@ -69,7 +69,7 @@ type ProductOutput struct {
 	Price       int64
 	CategoryID  uuid.UUID
 	ImageURL    *string
-	Quantity    int64
+	Quantity    int
 }
 
 func (s *productService) CreateProducts(

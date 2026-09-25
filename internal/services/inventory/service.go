@@ -48,6 +48,13 @@ type InventoryService interface {
 		productID uuid.UUID,
 		damagedStock int,
 	) (*DamageStockOutput, error)
+
+	SellStock(
+		ctx context.Context,
+		tx bun.IDB,
+		productID uuid.UUID,
+		soldStock int,
+	) (*SellStockOutput, error)
 }
 
 type inventoryService struct {
@@ -395,4 +402,58 @@ func (s *inventoryService) DamageStock(
 	}
 
 	return &output, nil
+}
+
+type SellStockOutput struct {
+	ProductID   uuid.UUID
+	BeforeStock int
+	AfterStock  int
+}
+
+func (s *inventoryService) SellStock(
+	ctx context.Context,
+	tx bun.IDB,
+	productID uuid.UUID,
+	soldStock int,
+) (*SellStockOutput, error) {
+	if soldStock <= 0 {
+		return nil, ErrInvalidQuantity
+	}
+
+	inventory, err := s.inventoryRepo.ChangeStock(
+		ctx,
+		tx,
+		StockParams{
+			ProductID: productID,
+			Quantity:  soldStock,
+			Change:    StockDecrease,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	afterStock := inventory.Quantity
+	beforeStock := afterStock + soldStock
+
+	err = s.movementRecorder.RecordMovement(
+		ctx,
+		tx,
+		RecordMovementInput{
+			ProductID:   productID,
+			Type:        MovementTypeSold,
+			Quantity:    soldStock,
+			BeforeStock: beforeStock,
+			AfterStock:  afterStock,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SellStockOutput{
+		ProductID:   productID,
+		BeforeStock: beforeStock,
+		AfterStock:  afterStock,
+	}, nil
 }

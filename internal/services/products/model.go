@@ -36,5 +36,5 @@ type ProductListItem struct {
 	Price       int64     `bun:"price"`
 	CategoryID  uuid.UUID `bun:"category_id"`
 	ImageURL    *string   `bun:"image_url"`
-	Quantity    int64     `bun:"quantity"`
+	Quantity    int       `bun:"quantity"`
 }

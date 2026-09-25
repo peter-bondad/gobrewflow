@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"gobrewflow/internal/database"
 	"gobrewflow/internal/services/inventory"
-	"gobrewflow/internal/services/inventory_movements"
 	"gobrewflow/internal/services/order_items"
 	"gobrewflow/internal/services/products"
 
@@ -21,27 +19,26 @@ type OrdersService interface {
 }
 
 type ordersService struct {
-	ordersRepo             OrderRepository
-	productsRepo           products.ProductRepository
-	inventoryRepo          inventory.InventoryRepository
-	inventoryMovementsRepo inventory_movements.InventoryMovementsRepository
-	orderItemsService      order_items.OrderItemsService
-	txManager              database.TxManager
+	ordersRepo        OrderRepository
+	productsRepo      products.ProductRepository
+	inventoryService  inventory.InventoryService
+	orderItemsService order_items.OrderItemsService
+	txManager         database.TxManager
 }
 
 func NewOrderService(
 	ordersRepo OrderRepository,
 	productsRepo products.ProductRepository,
-	inventoryRepo inventory.InventoryRepository,
-	inventoryMovementsRepo inventory_movements.InventoryMovementsRepository,
+	inventoryService inventory.InventoryService,
 	orderItemsService order_items.OrderItemsService,
+	txManager database.TxManager,
 ) OrdersService {
 	return &ordersService{
-		ordersRepo:             ordersRepo,
-		productsRepo:           productsRepo,
-		inventoryRepo:          inventoryRepo,
-		inventoryMovementsRepo: inventoryMovementsRepo,
-		orderItemsService:      orderItemsService,
+		ordersRepo:        ordersRepo,
+		productsRepo:      productsRepo,
+		inventoryService:  inventoryService,
+		orderItemsService: orderItemsService,
+		txManager:         txManager,
 	}
 }
 
@@ -90,7 +87,6 @@ func (s *ordersService) CreateOrder(
 		return nil, ErrInvalidCashierID
 	}
 
-	// Aggregate requested quantities by product.
 	requestedQty := make(map[uuid.UUID]int, len(input.Items))
 
 	for _, item := range input.Items {
@@ -115,7 +111,10 @@ func (s *ordersService) CreateOrder(
 			return nil, err
 		}
 
-		stock, err := s.inventoryRepo.FindByProductID(ctx, productID)
+		stock, err := s.inventoryService.GetInventoryByProductID(
+			ctx,
+			productID,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -156,35 +155,16 @@ func (s *ordersService) CreateOrder(
 	var order *Orders
 
 	err := s.txManager.WithTx(ctx, func(tx bun.IDB) error {
-		// Deduct stock and create inventory movements.
+		// Deduct stock and record SOLD movement.
 		for productID, quantity := range requestedQty {
-			_, err := s.inventoryRepo.ChangeStock(
+			_, err := s.inventoryService.SellStock(
 				ctx,
 				tx,
-				inventory.StockParams{
-					ProductID: productID,
-					Quantity:  quantity,
-					Change:    inventory.StockDecrease,
-				},
+				productID,
+				quantity,
 			)
 			if err != nil {
 				return err
-			}
-
-			movement := &inventory_movements.InventoryMovement{
-				ID:        uuid.New(),
-				ProductID: productID,
-				Type:      inventory.MovementTypeSold,
-				Quantity:  quantity,
-				CreatedAt: time.Now(),
-			}
-
-			if err := s.inventoryMovementsRepo.CreateMovement(
-				ctx,
-				tx,
-				movement,
-			); err != nil {
-				return fmt.Errorf("failed to create inventory movement: %w", err)
 			}
 		}
 

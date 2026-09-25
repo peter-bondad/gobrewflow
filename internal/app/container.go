@@ -130,9 +130,9 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	ordersService := orders.NewOrderService(
 		ordersRepo,
 		productsRepo,
-		inventoryRepo,
-		inventoryMovementsRepo,
+		inventoryService,
 		orderItemsService,
+		txManager,
 	)
 	ordersHandler := orders.NewOrdesHandler(ordersService)
 
