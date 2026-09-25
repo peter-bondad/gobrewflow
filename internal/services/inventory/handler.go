@@ -12,6 +12,7 @@ type InventoryHandler interface {
 	GetInventoryByProductID(ctx *gin.Context)
 	AdjustStock(c *gin.Context)
 	ReceiveStock(c *gin.Context)
+	DamageStock(c *gin.Context)
 }
 
 type inventoryHandler struct {
@@ -193,6 +194,54 @@ func (h *inventoryHandler) ReceiveStock(c *gin.Context) {
 	}
 
 	resp := ReceiveStockResponse{
+		ProductID:   productID,
+		Adjustment:  output.AfterStock - output.BeforeStock,
+		BeforeStock: output.BeforeStock,
+		AfterStock:  output.AfterStock,
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+type DamageStockRequest struct {
+	DamagedStock int `json:"damaged_stock" binding:"gt=0"`
+}
+
+type DamageStockResponse struct {
+	ProductID   uuid.UUID `json:"productId"`
+	BeforeStock int       `json:"beforeStock"`
+	Adjustment  int       `json:"adjustment"`
+	AfterStock  int       `json:"afterStock"`
+}
+
+func (h *inventoryHandler) DamageStock(c *gin.Context) {
+
+	var param GetInventoryByProductIDRequestParam
+
+	if err := c.ShouldBindUri(&param); err != nil {
+		c.Error(err)
+		return
+	}
+
+	productID, err := uuid.Parse(param.ProductID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	var req DamageStockRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(err)
+		return
+	}
+
+	output, err := h.service.DamageStock(c.Request.Context(), productID, req.DamagedStock)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	resp := DamageStockResponse{
 		ProductID:   productID,
 		Adjustment:  output.AfterStock - output.BeforeStock,
 		BeforeStock: output.BeforeStock,
