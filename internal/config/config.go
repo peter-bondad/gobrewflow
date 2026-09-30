@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+type PayMongoConfig struct {
+	BaseURL    string
+	Secret     string
+	SuccessURL string
+	CancelURL  string
+}
+
 // Global configuration struct for the application
 type Config struct {
 	App      AppConfig
@@ -13,6 +20,7 @@ type Config struct {
 
 	JWT        JWTConfig
 	Invitation InvitationConfig
+	PayMongo   PayMongoConfig
 }
 
 type Env string
@@ -81,6 +89,13 @@ func Load() (*Config, error) {
 		Invitation: InvitationConfig{
 			BaseURL: getEnv("INVITATION_BASE_URL", "http://localhost:3000"),
 			TTL:     getEnvDuration("INVITATION_TTL", 24*time.Hour),
+		},
+
+		PayMongo: PayMongoConfig{
+			BaseURL:    getEnv("PAYMONGO_BASE_URL", "https://api.paymongo.com"),
+			Secret:     getEnv("PAYMONGO_TEST_SECRET_KEY", ""),
+			SuccessURL: getEnv("PAYMONGO_SUCCESS_URL", "http://localhost:3000/payment/success"),
+			CancelURL:  getEnv("PAYMONGO_SUCCESS_URL", "http://localhost:3000/payment/cancel"),
 		},
 	}
 
