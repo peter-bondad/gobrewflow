@@ -7,6 +7,7 @@ import (
 	"gobrewflow/internal/config"
 	"gobrewflow/internal/database"
 	"gobrewflow/shared/logger"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,17 +18,19 @@ import (
 
 // main is the entry point of the application. It initializes the configuration, logger, and application components, starts the server, and handles graceful shutdown on receiving termination signals.
 func main() {
-
 	// Load environment variables from .env file
 	_ = godotenv.Load()
 
-	log := logger.New("development", "debug")
-
 	cfg, err := config.Load()
 	if err != nil {
-		log.Error("failed to load config", "error", err)
+		log.Printf("failed to load config: %v", err)
 		os.Exit(1)
 	}
+
+	log := logger.New(
+		string(cfg.App.Env),
+		string(cfg.App.LogLevel),
+	)
 
 	db, err := database.NewPostgres(cfg.Database)
 	if err != nil {
@@ -52,24 +55,21 @@ func main() {
 		}
 	}()
 
-	// Set up signal handling for graceful shutdown
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
 		syscall.SIGTERM,
 	)
-	defer stop() // Ensure that the signal handler is stopped when main exits
+	defer stop()
 
-	<-ctx.Done() // Wait for a termination signal
+	<-ctx.Done()
 
-	// Create a context with a timeout for the shutdown process
 	shutdownCtx, cancel := context.WithTimeout(
 		context.Background(),
 		cfg.App.ShutdownTimeout,
 	)
-	defer cancel() // Ensure that the shutdown context is canceled when main exits
+	defer cancel()
 
-	// Attempt to gracefully shut down the application
 	if err := app.Shutdown(shutdownCtx); err != nil {
 		log.Error("failed to shutdown application", "error", err)
 		os.Exit(1)
