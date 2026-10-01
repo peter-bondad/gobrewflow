@@ -19,7 +19,7 @@ type Orders struct {
 	bun.BaseModel `bun:"table:orders,alias:o"`
 
 	ID          uuid.UUID   `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
-	OrderNumber string      `bun:"order_number,notnull,unique"`
+	OrderNumber string      `bun:"order_number,notnull,unique,default:gen"`
 	Status      OrderStatus `bun:"status,notnull,default:'pending'"`
 
 	Subtotal int64 `bun:"subtotal,notnull,default:0"`

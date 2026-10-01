@@ -21,7 +21,7 @@ func NewOrderRepository(db bun.IDB) OrderRepository {
 }
 
 func (r *ordersRepository) InsertOrder(ctx context.Context, db bun.IDB, item *Orders) error {
-	_, err := db.NewInsert().Model(item).Exec(ctx)
+	_, err := db.NewInsert().Model(item).Returning("*").Exec(ctx)
 	return err
 }
 
