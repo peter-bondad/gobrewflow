@@ -1,17 +1,13 @@
 version: "3"
 
-dotenv:
-  - .env
-
 env:
   MIGRATE_VERSION: "v4.18.2"
-
-vars:
-  DATABASE_URL: postgres://{{.DB_USER}}:{{.DB_PASSWORD}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL_MODE}}
 
 tasks:
   setup:
     desc: Install development tools
+    dotenv:
+      - .env
     cmds:
       - echo "Installing development tools..."
       - go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@{{.MIGRATE_VERSION}}
@@ -19,18 +15,38 @@ tasks:
 
   dev:
     desc: Start the application with Air
+    dotenv:
+      - .env
     cmds:
       - air
 
   migrate-up:
-    desc: Run all pending migrations
+    desc: Run all pending local migrations
+    dotenv:
+      - .env
     cmds:
-      - migrate -path ./db/migrations -database "{{.DATABASE_URL}}" up
+      - migrate -path ./db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
 
   migrate-down:
-    desc: Rollback the last migration
+    desc: Rollback the last local migration
+    dotenv:
+      - .env
     cmds:
-      - migrate -path ./db/migrations -database "{{.DATABASE_URL}}" down 1
+      - migrate -path ./db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
+
+  migrate-up-neon:
+    desc: Run all pending migrations against Neon
+    dotenv:
+      - .env.neon
+    cmds:
+      - migrate -path ./db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" up
+
+  migrate-down-neon:
+    desc: Rollback the last migration on Neon
+    dotenv:
+      - .env.neon
+    cmds:
+      - migrate -path ./db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" down 1
 
   migrate-create:
     desc: "Create a new migration file (usage: task migrate-create NAME=create_orders_table)"
@@ -38,9 +54,18 @@ tasks:
       - migrate create -seq -ext sql -dir ./db/migrations {{.NAME}}
 
   migrate-force:
-    desc: "Force migration version (usage: task migrate-force VERSION=1)"
+    desc: "Force local migration version (usage: task migrate-force VERSION=1)"
+    dotenv:
+      - .env
     cmds:
-      - migrate -path ./db/migrations -database "{{.DATABASE_URL}}" force {{.VERSION}}
+      - migrate -path ./db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" force {{.VERSION}}
+
+  migrate-force-neon:
+    desc: "Force Neon migration version (usage: task migrate-force-neon VERSION=1)"
+    dotenv:
+      - .env.neon
+    cmds:
+      - migrate -path ./db/migrations -database "postgres://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL_MODE" force {{.VERSION}}
 
   service-create:
     desc: "Creates a new service folder with the standard Go files and package declarations."
