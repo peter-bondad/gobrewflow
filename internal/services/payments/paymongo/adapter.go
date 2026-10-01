@@ -10,12 +10,17 @@ import (
 var _ payments.PaymentGateway = (*Adapter)(nil)
 
 type Adapter struct {
-	client *Client
+	client        *Client
+	webhookSecret string
 }
 
-func NewAdapter(client *Client) *Adapter {
+func NewAdapter(
+	client *Client,
+	webhookSecret string,
+) *Adapter {
 	return &Adapter{
-		client: client,
+		client:        client,
+		webhookSecret: webhookSecret,
 	}
 }
 

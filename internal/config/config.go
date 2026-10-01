@@ -7,10 +7,11 @@ import (
 )
 
 type PayMongoConfig struct {
-	BaseURL    string
-	Secret     string
-	SuccessURL string
-	CancelURL  string
+	BaseURL       string
+	SecretKey     string
+	WebhookSecret string
+	SuccessURL    string
+	CancelURL     string
 }
 
 // Global configuration struct for the application
@@ -92,10 +93,11 @@ func Load() (*Config, error) {
 		},
 
 		PayMongo: PayMongoConfig{
-			BaseURL:    getEnv("PAYMONGO_BASE_URL", "https://api.paymongo.com"),
-			Secret:     getEnv("PAYMONGO_TEST_SECRET_KEY", ""),
-			SuccessURL: getEnv("PAYMONGO_SUCCESS_URL", "http://localhost:3000/payment/success"),
-			CancelURL:  getEnv("PAYMONGO_CANCEL_URL", "http://localhost:3000/payment/cancel"),
+			BaseURL:       getEnv("PAYMONGO_BASE_URL", "https://api.paymongo.com"),
+			SecretKey:     getEnv("PAYMONGO_TEST_SECRET_KEY", ""),
+			WebhookSecret: getEnv("PAYMONGO_WEBHOOK_SECRET", ""),
+			SuccessURL:    getEnv("PAYMONGO_SUCCESS_URL", "http://localhost:3000/payment/success"),
+			CancelURL:     getEnv("PAYMONGO_CANCEL_URL", "http://localhost:3000/payment/cancel"),
 		},
 	}
 

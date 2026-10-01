@@ -12,6 +12,8 @@ import (
 type fakePaymentRepository struct {
 	createdPayment *Payment
 	createErr      error
+	updatedPayment *Payment
+	payment        *Payment
 }
 
 func (f *fakePaymentRepository) Create(
@@ -42,12 +44,21 @@ func (f *fakePaymentRepository) FindByOrderID(
 ) (*Payment, error) {
 	return nil, nil
 }
+func (f *fakePaymentRepository) FindByProviderCheckoutID(
+	ctx context.Context,
+	db bun.IDB,
+	checkoutID string,
+) (*Payment, error) {
+	return f.payment, nil
+}
 
 func (f *fakePaymentRepository) Update(
 	ctx context.Context,
 	db bun.IDB,
 	payment *Payment,
 ) error {
+	f.updatedPayment = payment
+
 	return nil
 }
 
@@ -264,6 +275,143 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 				StatusPending,
 				repo.createdPayment.Status,
 			)
+		}
+	})
+}
+
+func TestPaymentService_HandleWebhook(t *testing.T) {
+
+	checkoutID := "cs_test_123"
+	providerPaymentID := "pay_test_123"
+
+	t.Run("successful payment updates payment", func(t *testing.T) {
+		payment := &Payment{
+			ID:                 uuid.New(),
+			ProviderCheckoutID: checkoutID,
+			Status:             StatusPending,
+		}
+
+		repo := &fakePaymentRepository{
+			payment: payment,
+		}
+
+		service := NewService(
+			repo,
+			nil,
+			nil,
+			"",
+			"",
+		)
+
+		err := service.HandleWebhook(
+			context.Background(),
+			&WebhookResult{
+				CheckoutID: checkoutID,
+				PaymentID:  &providerPaymentID,
+				Status:     StatusPaid,
+			},
+		)
+
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if repo.updatedPayment == nil {
+			t.Fatal("expected payment to be updated")
+		}
+
+		if repo.updatedPayment.Status != StatusPaid {
+			t.Fatalf(
+				"expected status %s, got %s",
+				StatusPaid,
+				repo.updatedPayment.Status,
+			)
+		}
+
+		if repo.updatedPayment.ProviderPaymentID == nil {
+			t.Fatal("expected provider payment ID")
+		}
+
+		if *repo.updatedPayment.ProviderPaymentID != providerPaymentID {
+			t.Fatalf(
+				"expected provider payment ID %s, got %s",
+				providerPaymentID,
+				*repo.updatedPayment.ProviderPaymentID,
+			)
+		}
+	})
+
+	t.Run("already paid payment is ignored", func(t *testing.T) {
+		payment := &Payment{
+			ID:                 uuid.New(),
+			ProviderCheckoutID: checkoutID,
+			Status:             StatusPaid,
+		}
+
+		repo := &fakePaymentRepository{
+			payment: payment,
+		}
+
+		service := NewService(
+			repo,
+			nil,
+			nil,
+			"",
+			"",
+		)
+
+		err := service.HandleWebhook(
+			context.Background(),
+			&WebhookResult{
+				CheckoutID: checkoutID,
+				PaymentID:  &providerPaymentID,
+				Status:     StatusPaid,
+			},
+		)
+
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if repo.updatedPayment != nil {
+			t.Fatal("expected already paid payment not to be updated")
+		}
+	})
+
+	t.Run("non-paid webhook is ignored", func(t *testing.T) {
+		payment := &Payment{
+			ID:                 uuid.New(),
+			ProviderCheckoutID: checkoutID,
+			Status:             StatusPending,
+		}
+
+		repo := &fakePaymentRepository{
+			payment: payment,
+		}
+
+		service := NewService(
+			repo,
+			nil,
+			nil,
+			"",
+			"",
+		)
+
+		err := service.HandleWebhook(
+			context.Background(),
+			&WebhookResult{
+				CheckoutID: checkoutID,
+				PaymentID:  &providerPaymentID,
+				Status:     StatusFailed,
+			},
+		)
+
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if repo.updatedPayment != nil {
+			t.Fatal("expected non-paid webhook not to update payment")
 		}
 	})
 }

@@ -145,15 +145,15 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 
 	paymongoClient := paymongo.NewClient(
 		cfg.PayMongo.BaseURL,
-		cfg.PayMongo.Secret,
+		cfg.PayMongo.SecretKey,
 		nil,
 	)
 
-	paymentGateway := paymongo.NewAdapter(paymongoClient)
+	paymentMongoAdapter := paymongo.NewAdapter(paymongoClient, cfg.PayMongo.WebhookSecret)
 
 	paymentService := payments.NewService(
 		paymentRepo,
-		paymentGateway,
+		paymentMongoAdapter,
 		db,
 		cfg.PayMongo.SuccessURL,
 		cfg.PayMongo.CancelURL,
@@ -162,6 +162,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	paymentHandler := payments.NewPaymentHandler(
 		paymentService,
 		ordersService,
+		paymentMongoAdapter,
 	)
 
 	return &Container{

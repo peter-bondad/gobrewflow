@@ -13,6 +13,11 @@ type PaymentService interface {
 		ctx context.Context,
 		input CreatePaymentCheckoutInput,
 	) (*CreateCheckoutOutput, error)
+
+	HandleWebhook(
+		ctx context.Context,
+		result *WebhookResult,
+	) error
 }
 
 type paymentService struct {
@@ -64,7 +69,7 @@ func (s *paymentService) CreateCheckout(
 		return nil, ErrInvalidCurrency
 	}
 
-	// 2. Create the payment checkout.
+	// 2. Create the payment checkout through the payment gateway.
 	checkout, err := s.gateway.CreateCheckout(
 		ctx,
 		CreateCheckoutInput{
@@ -95,16 +100,57 @@ func (s *paymentService) CreateCheckout(
 		UpdatedAt:          now,
 	}
 
-	// 4. Persist it.
+	// 4. Persist the payment.
 	if err := s.repo.Create(ctx, s.db, payment); err != nil {
 		return nil, err
 	}
 
-	// 5. Return data needed by the API/frontend.
+	// 5. Return the checkout information to the API/frontend.
 	return &CreateCheckoutOutput{
 		PaymentID:   payment.ID,
 		CheckoutID:  checkout.CheckoutID,
 		CheckoutURL: checkout.CheckoutURL,
 		Status:      payment.Status,
 	}, nil
+}
+
+// HandleWebhook processes a verified payment webhook.
+// HandleWebhook processes a verified payment webhook.
+func (s *paymentService) HandleWebhook(
+	ctx context.Context,
+	result *WebhookResult,
+) error {
+	// 1. Make sure we received a valid webhook result.
+	if result == nil {
+		return ErrInvalidWebhook
+	}
+
+	// 2. Find our payment using the PayMongo checkout ID.
+	payment, err := s.repo.FindByProviderCheckoutID(
+		ctx,
+		s.db,
+		result.CheckoutID,
+	)
+	if err != nil {
+		return err
+	}
+
+	// 3. Ignore the webhook if this payment was already completed.
+	// PayMongo can send the same webhook more than once.
+	if payment.Status == StatusPaid {
+		return nil
+	}
+
+	// 4. Only process successful payment events.
+	if result.Status != StatusPaid {
+		return nil
+	}
+
+	// 5. Update the payment with PayMongo's payment information.
+	payment.Status = StatusPaid
+	payment.ProviderPaymentID = result.PaymentID
+	payment.UpdatedAt = time.Now()
+
+	// 6. Persist the updated payment.
+	return s.repo.Update(ctx, s.db, payment)
 }

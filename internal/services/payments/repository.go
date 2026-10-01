@@ -11,6 +11,7 @@ type Repository interface {
 	Create(ctx context.Context, db bun.IDB, payment *Payment) error
 	FindByID(ctx context.Context, db bun.IDB, id uuid.UUID) (*Payment, error)
 	FindByOrderID(ctx context.Context, db bun.IDB, orderID uuid.UUID) (*Payment, error)
+	FindByProviderCheckoutID(ctx context.Context, db bun.IDB, checkoutID string) (*Payment, error)
 	Update(ctx context.Context, db bun.IDB, payment *Payment) error
 }
 
@@ -61,6 +62,25 @@ func (r *paymentRepository) FindByOrderID(
 	err := db.NewSelect().
 		Model(payment).
 		Where("order_id = ?", orderID).
+		Scan(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return payment, nil
+}
+
+func (r *paymentRepository) FindByProviderCheckoutID(
+	ctx context.Context,
+	db bun.IDB,
+	checkoutID string,
+) (*Payment, error) {
+	payment := new(Payment)
+
+	err := db.NewSelect().
+		Model(payment).
+		Where("provider_checkout_id = ?", checkoutID).
 		Scan(ctx)
 
 	if err != nil {

@@ -100,4 +100,5 @@ func (s *Server) protectedRoutes(
 
 	// Payments
 	paymentsAPI.POST("/checkout", paymentHandler.CreateCheckout)
+	paymentsAPI.POST("/webhooks/paymongo", paymentHandler.HandlePayMongoWebhook)
 }
