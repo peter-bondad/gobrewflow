@@ -16,6 +16,7 @@ import (
 
 type OrdersService interface {
 	CreateOrder(ctx context.Context, input *CreateOrderInput) (*CreateOrderOutput, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*OrderOutput, error)
 }
 
 type ordersService struct {
@@ -24,6 +25,7 @@ type ordersService struct {
 	inventoryService  inventory.InventoryService
 	orderItemsService order_items.OrderItemsService
 	txManager         database.TxManager
+	db                bun.IDB
 }
 
 func NewOrderService(
@@ -212,6 +214,42 @@ func (s *ordersService) CreateOrder(
 		Tax:         tax,
 		Discount:    discount,
 		Total:       total,
+		CashierID:   order.CashierID,
+	}, nil
+}
+
+type OrderOutput struct {
+	ID          uuid.UUID
+	OrderNumber string
+	Status      string
+	Subtotal    int64
+	Tax         int64
+	Discount    int64
+	Total       int64
+	CashierID   uuid.UUID
+}
+
+func (s *ordersService) FindByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*OrderOutput, error) {
+	if id == uuid.Nil {
+		return nil, ErrInvalidOrderID
+	}
+
+	order, err := s.ordersRepo.FindByID(ctx, s.db, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OrderOutput{
+		ID:          order.ID,
+		OrderNumber: order.OrderNumber,
+		Status:      string(order.Status),
+		Subtotal:    order.Subtotal,
+		Tax:         order.Tax,
+		Discount:    order.Discount,
+		Total:       order.Total,
 		CashierID:   order.CashierID,
 	}, nil
 }

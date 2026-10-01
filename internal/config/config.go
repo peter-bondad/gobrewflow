@@ -95,7 +95,7 @@ func Load() (*Config, error) {
 			BaseURL:    getEnv("PAYMONGO_BASE_URL", "https://api.paymongo.com"),
 			Secret:     getEnv("PAYMONGO_TEST_SECRET_KEY", ""),
 			SuccessURL: getEnv("PAYMONGO_SUCCESS_URL", "http://localhost:3000/payment/success"),
-			CancelURL:  getEnv("PAYMONGO_SUCCESS_URL", "http://localhost:3000/payment/cancel"),
+			CancelURL:  getEnv("PAYMONGO_CANCEL_URL", "http://localhost:3000/payment/cancel"),
 		},
 	}
 

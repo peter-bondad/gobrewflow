@@ -11,6 +11,8 @@ import (
 	"gobrewflow/internal/services/invitations"
 	"gobrewflow/internal/services/order_items"
 	"gobrewflow/internal/services/orders"
+	"gobrewflow/internal/services/payments"
+	"gobrewflow/internal/services/payments/paymongo"
 	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
 
@@ -53,6 +55,8 @@ type Container struct {
 	OrderItemsService order_items.OrderItemsService
 
 	OrderItemsRepo order_items.OrderItemRepository
+
+	PaymentHandler payments.PaymentHandler
 }
 
 func NewContainer(db *bun.DB, cfg *config.Config) *Container {
@@ -126,7 +130,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 	orderItemsService := order_items.NewOrderItemsService(orderItemsRepo)
 
 	// Orders
-	ordersRepo := orders.NewOrderItemRepository(db)
+	ordersRepo := orders.NewOrderRepository(db)
 	ordersService := orders.NewOrderService(
 		ordersRepo,
 		productsRepo,
@@ -135,6 +139,30 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		txManager,
 	)
 	ordersHandler := orders.NewOrdesHandler(ordersService)
+
+	// Payments
+	paymentRepo := payments.NewRepository()
+
+	paymongoClient := paymongo.NewClient(
+		cfg.PayMongo.BaseURL,
+		cfg.PayMongo.Secret,
+		nil,
+	)
+
+	paymentGateway := paymongo.NewAdapter(paymongoClient)
+
+	paymentService := payments.NewService(
+		paymentRepo,
+		paymentGateway,
+		db,
+		cfg.PayMongo.SuccessURL,
+		cfg.PayMongo.CancelURL,
+	)
+
+	paymentHandler := payments.NewPaymentHandler(
+		paymentService,
+		ordersService,
+	)
 
 	return &Container{
 		InvitationHandler:         invitationHandler,
@@ -155,5 +183,6 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		OrdersRepo:                ordersRepo,
 		OrderItemsService:         orderItemsService,
 		OrderItemsRepo:            orderItemsRepo,
+		PaymentHandler:            paymentHandler,
 	}
 }
