@@ -69,7 +69,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		App: AppConfig{
 			Env:             Env(getEnv("APP_ENV", "development")),
-			Port:            getEnv("APP_PORT", "8080"),
+			Port:            getEnv("PORT", "8080"),
 			LogLevel:        LogLevel(getEnv("LOG_LEVEL", "debug")),
 			ShutdownTimeout: getEnvDuration("APP_SHUTDOWN_TIMEOUT", 10*time.Second),
 		},
