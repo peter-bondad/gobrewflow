@@ -34,6 +34,7 @@ func NewOrderService(
 	inventoryService inventory.InventoryService,
 	orderItemsService order_items.OrderItemsService,
 	txManager database.TxManager,
+	db bun.IDB,
 ) OrdersService {
 	return &ordersService{
 		ordersRepo:        ordersRepo,
@@ -41,6 +42,7 @@ func NewOrderService(
 		inventoryService:  inventoryService,
 		orderItemsService: orderItemsService,
 		txManager:         txManager,
+		db:                db,
 	}
 }
 
