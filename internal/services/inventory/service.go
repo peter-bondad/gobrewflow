@@ -441,7 +441,7 @@ func (s *inventoryService) SellStock(
 		tx,
 		RecordMovementInput{
 			ProductID:   productID,
-			Type:        MovementTypeSold,
+			Type:        MovementTypeReserved,
 			Quantity:    soldStock,
 			BeforeStock: beforeStock,
 			AfterStock:  afterStock,

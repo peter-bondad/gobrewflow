@@ -15,6 +15,7 @@ const (
 	MovementTypeDamaged  MovementType = "DAMAGED"
 	MovementTypeSold     MovementType = "SOLD"
 	MovementTypeAdjusted MovementType = "ADJUSTED"
+	MovementTypeReserved MovementType = "RESERVED"
 )
 
 type RecordMovementInput struct {

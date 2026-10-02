@@ -159,7 +159,7 @@ func (s *ordersService) CreateOrder(
 	var order *Orders
 
 	err := s.txManager.WithTx(ctx, func(tx bun.IDB) error {
-		// Deduct stock and record SOLD movement.
+		// Deduct stock and record RESERVED movement.
 		for productID, quantity := range requestedQty {
 			_, err := s.inventoryService.SellStock(
 				ctx,
