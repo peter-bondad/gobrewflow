@@ -168,11 +168,11 @@ func (s *paymentService) HandleWebhook(
 	payment.ProviderPaymentID = result.PaymentID
 	payment.UpdatedAt = time.Now()
 
-	// 6. Persist the updated payment.
-
+	// 6. Mark the payment as paid.
 	if err := s.paymentRepo.Update(ctx, s.db, payment); err != nil {
 		return err
 	}
 
+	// 7. Mark the related order as paid.
 	return s.ordersService.MarkOrderAsPaid(ctx, payment.OrderID)
 }
