@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"gobrewflow/internal/services/orders"
+	"gobrewflow/shared/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -132,10 +133,9 @@ func (h *paymentHandler) HandlePayMongoWebhook(c *gin.Context) {
 		})
 		return
 	}
-
 	h.log.Info(
 		"paymongo_webhook_received",
-		"payload", string(payload),
+		slog.String("request_id", logger.GetRequestID(c)),
 	)
 
 	// 2. Get the signature sent by PayMongo.
@@ -167,6 +167,14 @@ func (h *paymentHandler) HandlePayMongoWebhook(c *gin.Context) {
 		})
 		return
 	}
+
+	h.log.Info(
+		"paymongo_webhook_parsed",
+		slog.String("request_id", logger.GetRequestID(c)),
+		slog.String("checkout_id", result.CheckoutID),
+		slog.String("payment_id", *result.PaymentID),
+		slog.String("status", string(result.Status)),
+	)
 
 	// 5. Pass the payment information to the payment service.
 	// The service will handle the database/business logic.
