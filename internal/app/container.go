@@ -154,6 +154,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 
 	paymentService := payments.NewService(
 		paymentRepo,
+		ordersService,
 		paymentMongoAdapter,
 		db,
 		cfg.PayMongo.SuccessURL,

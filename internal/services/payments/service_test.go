@@ -9,6 +9,23 @@ import (
 	"github.com/uptrace/bun"
 )
 
+type fakeOrdersService struct {
+	markedOrderID uuid.UUID
+	markErr       error
+}
+
+func (f *fakeOrdersService) MarkOrderAsPaid(
+	ctx context.Context,
+	orderID uuid.UUID,
+) error {
+	if f.markErr != nil {
+		return f.markErr
+	}
+
+	f.markedOrderID = orderID
+	return nil
+}
+
 type fakePaymentRepository struct {
 	createdPayment *Payment
 	createErr      error
@@ -89,6 +106,7 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 	t.Run("invalid order ID", func(t *testing.T) {
 		service := NewService(
 			&fakePaymentRepository{},
+			&fakeOrdersService{},
 			&fakePaymentGateway{},
 			nil,
 			testSuccessURL,
@@ -112,6 +130,7 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 	t.Run("invalid amount", func(t *testing.T) {
 		service := NewService(
 			&fakePaymentRepository{},
+			&fakeOrdersService{},
 			&fakePaymentGateway{},
 			nil,
 			testSuccessURL,
@@ -135,6 +154,7 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 	t.Run("invalid currency", func(t *testing.T) {
 		service := NewService(
 			&fakePaymentRepository{},
+			&fakeOrdersService{},
 			&fakePaymentGateway{},
 			nil,
 			testSuccessURL,
@@ -160,6 +180,7 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 
 		service := NewService(
 			&fakePaymentRepository{},
+			&fakeOrdersService{},
 			&fakePaymentGateway{
 				createErr: gatewayErr,
 			},
@@ -192,7 +213,7 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo, gateway, nil, testSuccessURL, testCancelURL)
+		service := NewService(repo, &fakeOrdersService{}, gateway, nil, testSuccessURL, testCancelURL)
 
 		result, err := service.CreateCheckout(
 			context.Background(),
@@ -297,6 +318,7 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 
 		service := NewService(
 			repo,
+			&fakeOrdersService{},
 			nil,
 			nil,
 			"",
@@ -354,6 +376,7 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 
 		service := NewService(
 			repo,
+			&fakeOrdersService{},
 			nil,
 			nil,
 			"",
@@ -391,6 +414,7 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 
 		service := NewService(
 			repo,
+			&fakeOrdersService{},
 			nil,
 			nil,
 			"",

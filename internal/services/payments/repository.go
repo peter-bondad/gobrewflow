@@ -7,7 +7,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-type Repository interface {
+type PaymentRepository interface {
 	Create(ctx context.Context, db bun.IDB, payment *Payment) error
 	FindByID(ctx context.Context, db bun.IDB, id uuid.UUID) (*Payment, error)
 	FindByOrderID(ctx context.Context, db bun.IDB, orderID uuid.UUID) (*Payment, error)
@@ -17,7 +17,7 @@ type Repository interface {
 
 type paymentRepository struct{}
 
-func NewRepository() Repository {
+func NewRepository() PaymentRepository {
 	return &paymentRepository{}
 }
 

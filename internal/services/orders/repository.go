@@ -10,6 +10,7 @@ import (
 type OrderRepository interface {
 	InsertOrder(ctx context.Context, db bun.IDB, item *Orders) error
 	FindByID(ctx context.Context, db bun.IDB, id uuid.UUID) (*Orders, error)
+	UpdateOrderStatus(ctx context.Context, db bun.IDB, orderID uuid.UUID, status OrderStatus) error
 }
 
 type ordersRepository struct {
@@ -41,4 +42,19 @@ func (r *ordersRepository) FindByID(
 	}
 
 	return order, nil
+}
+
+func (r *ordersRepository) UpdateOrderStatus(
+	ctx context.Context,
+	db bun.IDB,
+	orderID uuid.UUID,
+	status OrderStatus,
+) error {
+	_, err := db.NewUpdate().
+		Model((*Orders)(nil)).
+		Set("status = ?", status).
+		Where("id = ?", orderID).
+		Exec(ctx)
+
+	return err
 }

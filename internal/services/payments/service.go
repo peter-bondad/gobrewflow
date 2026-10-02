@@ -22,26 +22,36 @@ type PaymentService interface {
 }
 
 type paymentService struct {
-	repo       Repository
-	gateway    PaymentGateway
-	db         bun.IDB
-	successURL string
-	cancelURL  string
+	paymentRepo   PaymentRepository
+	ordersService OrderService
+	gateway       PaymentGateway
+	db            bun.IDB
+	successURL    string
+	cancelURL     string
+}
+
+type OrderService interface {
+	MarkOrderAsPaid(
+		ctx context.Context,
+		orderID uuid.UUID,
+	) error
 }
 
 func NewService(
-	repo Repository,
+	paymentRepo PaymentRepository,
+	ordersService OrderService,
 	gateway PaymentGateway,
 	db bun.IDB,
 	successURL string,
 	cancelURL string,
 ) PaymentService {
 	return &paymentService{
-		repo:       repo,
-		gateway:    gateway,
-		db:         db,
-		successURL: successURL,
-		cancelURL:  cancelURL,
+		paymentRepo:   paymentRepo,
+		ordersService: ordersService,
+		gateway:       gateway,
+		db:            db,
+		successURL:    successURL,
+		cancelURL:     cancelURL,
 	}
 }
 
@@ -102,7 +112,7 @@ func (s *paymentService) CreateCheckout(
 	}
 
 	// 4. Persist the payment.
-	if err := s.repo.Create(ctx, s.db, payment); err != nil {
+	if err := s.paymentRepo.Create(ctx, s.db, payment); err != nil {
 		return nil, err
 	}
 
@@ -126,7 +136,7 @@ func (s *paymentService) HandleWebhook(
 	}
 
 	// 2. Find our payment using the PayMongo checkout ID.
-	payment, err := s.repo.FindByProviderCheckoutID(
+	payment, err := s.paymentRepo.FindByProviderCheckoutID(
 		ctx,
 		s.db,
 		result.CheckoutID,
@@ -159,5 +169,10 @@ func (s *paymentService) HandleWebhook(
 	payment.UpdatedAt = time.Now()
 
 	// 6. Persist the updated payment.
-	return s.repo.Update(ctx, s.db, payment)
+
+	if err := s.paymentRepo.Update(ctx, s.db, payment); err != nil {
+		return err
+	}
+
+	return s.ordersService.MarkOrderAsPaid(ctx, payment.OrderID)
 }
