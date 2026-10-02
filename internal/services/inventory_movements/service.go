@@ -71,7 +71,7 @@ func isValidMovementType(t inventory.MovementType) bool {
 	switch t {
 	case inventory.MovementTypeReceived, inventory.MovementTypeSold,
 		inventory.MovementTypeReturned, inventory.MovementTypeDamaged,
-		inventory.MovementTypeAdjusted:
+		inventory.MovementTypeAdjusted, inventory.MovementTypeReserved:
 		return true
 	}
 	return false
