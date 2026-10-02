@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 
 	"gobrewflow/internal/services/orders"
@@ -21,6 +22,7 @@ type OrderFinder interface {
 }
 
 type paymentHandler struct {
+	log             slog.Logger
 	paymentService  PaymentService
 	orderService    OrderFinder
 	webhookVerifier PayMongoWebhookVerifier
@@ -128,6 +130,11 @@ func (h *paymentHandler) HandlePayMongoWebhook(c *gin.Context) {
 		})
 		return
 	}
+
+	h.log.Info(
+		"paymongo_webhook_received",
+		"payload", string(payload),
+	)
 
 	// 2. Get the signature sent by PayMongo.
 	signature := c.GetHeader("Paymongo-Signature")
