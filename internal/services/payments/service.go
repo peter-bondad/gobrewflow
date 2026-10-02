@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -115,7 +116,6 @@ func (s *paymentService) CreateCheckout(
 }
 
 // HandleWebhook processes a verified payment webhook.
-// HandleWebhook processes a verified payment webhook.
 func (s *paymentService) HandleWebhook(
 	ctx context.Context,
 	result *WebhookResult,
@@ -134,6 +134,13 @@ func (s *paymentService) HandleWebhook(
 	if err != nil {
 		return err
 	}
+
+	log.Printf(
+		"PayMongo webhook: checkout_id=%s payment_id=%s status=%s",
+		result.CheckoutID,
+		result.PaymentID,
+		result.Status,
+	)
 
 	// 3. Ignore the webhook if this payment was already completed.
 	// PayMongo can send the same webhook more than once.
