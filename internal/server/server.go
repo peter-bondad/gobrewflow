@@ -60,7 +60,7 @@ func New(cfg *config.Config, log *slog.Logger, deps Dependencies) (*Server, erro
 	}
 
 	s.routes()
-	s.publicRoutes(deps.UserHandler, deps.InvitationHandler)
+	s.publicRoutes(deps.UserHandler, deps.InvitationHandler, deps.PaymentsHandler)
 	s.protectedRoutes(authMiddleware, deps.UserRepo, deps.UserHandler, deps.InvitationHandler, deps.CategoriesHandler, deps.ProductsHandler, deps.InventoryHandler, deps.OrdersHandler, deps.PaymentsHandler)
 
 	return s, nil

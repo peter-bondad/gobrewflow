@@ -22,7 +22,7 @@ func (s *Server) routes() {
 	s.Server.GET("/health", s.handleHealth)
 }
 
-func (s *Server) publicRoutes(userHandler user.UserHandler, invitationHandler invitations.InvitationHandler) {
+func (s *Server) publicRoutes(userHandler user.UserHandler, invitationHandler invitations.InvitationHandler, paymentHandler payments.PaymentHandler) {
 
 	api := s.Server.Group("/api")
 	api.POST("/login", userHandler.Login)
@@ -31,6 +31,9 @@ func (s *Server) publicRoutes(userHandler user.UserHandler, invitationHandler in
 	// invitation for user routes
 	api.POST("/accept-invitation", invitationHandler.AcceptInvitation)
 	api.POST("/set-password", invitationHandler.SetPassword)
+
+	// PayMongo webhook
+	api.POST("/webhooks/paymongo", paymentHandler.HandlePayMongoWebhook)
 }
 
 // internal/server/routes.go
@@ -100,5 +103,4 @@ func (s *Server) protectedRoutes(
 
 	// Payments
 	paymentsAPI.POST("/checkout", paymentHandler.CreateCheckout)
-	paymentsAPI.POST("/webhooks/paymongo", paymentHandler.HandlePayMongoWebhook)
 }
