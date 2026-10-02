@@ -15,6 +15,7 @@ import (
 	"gobrewflow/internal/services/payments/paymongo"
 	"gobrewflow/internal/services/products"
 	"gobrewflow/internal/services/user"
+	"log/slog"
 
 	"github.com/uptrace/bun"
 )
@@ -59,7 +60,7 @@ type Container struct {
 	PaymentHandler payments.PaymentHandler
 }
 
-func NewContainer(db *bun.DB, cfg *config.Config) *Container {
+func NewContainer(db *bun.DB, cfg *config.Config, log *slog.Logger) *Container {
 	jwtService := &auth.JWTService{
 		Secret: []byte(cfg.JWT.Secret),
 	}
@@ -165,6 +166,7 @@ func NewContainer(db *bun.DB, cfg *config.Config) *Container {
 		paymentService,
 		ordersService,
 		paymentMongoAdapter,
+		log,
 	)
 
 	return &Container{

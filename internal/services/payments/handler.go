@@ -22,7 +22,7 @@ type OrderFinder interface {
 }
 
 type paymentHandler struct {
-	log             slog.Logger
+	log             *slog.Logger
 	paymentService  PaymentService
 	orderService    OrderFinder
 	webhookVerifier PayMongoWebhookVerifier
@@ -32,11 +32,13 @@ func NewPaymentHandler(
 	paymentService PaymentService,
 	orderService OrderFinder,
 	webhookVerifier PayMongoWebhookVerifier,
+	log *slog.Logger,
 ) PaymentHandler {
 	return &paymentHandler{
 		paymentService:  paymentService,
 		orderService:    orderService,
 		webhookVerifier: webhookVerifier,
+		log:             log,
 	}
 }
 

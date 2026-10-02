@@ -44,7 +44,11 @@ func New(cfg *config.Config, log *slog.Logger, deps Dependencies) (*Server, erro
 
 	router := gin.New()
 
-	router.Use(logger.RequestLogger(log))
+	router.Use(
+		logger.RequestID(),
+		logger.RequestLogger(log),
+		gin.Recovery(),
+	)
 	router.Use(middleware.ErrorHandler())
 
 	jwtService := &auth.JWTService{

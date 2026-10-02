@@ -14,6 +14,7 @@ func RequestLogger(log *slog.Logger) gin.HandlerFunc {
 		c.Next()
 
 		log.Info("http_request",
+			slog.String("request_id", GetRequestID(c)),
 			slog.String("method", c.Request.Method),
 			slog.String("path", c.Request.URL.Path),
 			slog.Int("status", c.Writer.Status()),

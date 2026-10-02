@@ -17,7 +17,7 @@ type App struct {
 
 // New creates a new instance of the App struct, initializing the server and other components based on the provided configuration and logger.
 func New(cfg *config.Config, log *slog.Logger, db *bun.DB) (*App, error) {
-	container := NewContainer(db, cfg)
+	container := NewContainer(db, cfg, log)
 
 	srv, err := server.New(cfg, log, server.Dependencies{
 		UserRepo:           container.UserRepo,
