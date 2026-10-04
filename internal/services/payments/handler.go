@@ -65,6 +65,14 @@ func (h *paymentHandler) CreateCheckout(c *gin.Context) {
 		return
 	}
 
+	requestID := logger.GetRequestID(c)
+
+	h.log.Info(
+		"payment_checkout_requested",
+		slog.String("request_id", requestID),
+		slog.String("order_id", req.OrderID.String()),
+	)
+
 	// 1. Find the order that the customer wants to pay for.
 	order, err := h.orderService.FindByID(c, req.OrderID)
 	if err != nil {
@@ -95,6 +103,16 @@ func (h *paymentHandler) CreateCheckout(c *gin.Context) {
 		c.Error(err)
 		return
 	}
+
+	h.log.Info(
+		"payment_checkout_created",
+		slog.String("request_id", requestID),
+		slog.String("order_id", order.ID.String()),
+		slog.String("payment_id", payment.PaymentID.String()),
+		slog.String("checkout_id", payment.CheckoutID),
+		slog.Int64("amount", order.Total),
+		slog.String("currency", "PHP"),
+	)
 
 	// 4. Return the checkout information to the client.
 	resp := CreateCheckoutResponse{
