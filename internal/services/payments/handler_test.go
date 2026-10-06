@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,6 +17,7 @@ import (
 type fakeOrderService struct {
 	order *orders.OrderOutput
 	err   error
+	log   *slog.Logger
 }
 
 func (f *fakeOrderService) CreateOrder(
@@ -44,6 +46,7 @@ type fakePaymentService struct {
 
 	webhookResult *WebhookResult
 	webhookErr    error
+	log           *slog.Logger
 }
 
 func (f *fakePaymentService) CreateCheckout(
@@ -122,6 +125,7 @@ func TestPaymentHandler_CreateCheckout(t *testing.T) {
 		paymentService,
 		orderService,
 		&fakeWebhookVerifier{},
+		slog.Default(),
 	)
 
 	router := gin.New()
@@ -205,6 +209,7 @@ func TestPaymentHandler_CreateCheckout(t *testing.T) {
 			paymentService,
 			orderService,
 			&fakeWebhookVerifier{},
+			slog.Default(),
 		)
 
 		router := gin.New()
@@ -258,6 +263,7 @@ func TestPaymentHandler_HandlePayMongoWebhook(t *testing.T) {
 			paymentService,
 			&fakeOrderService{},
 			webhookVerifier,
+			slog.Default(),
 		)
 
 		router := gin.New()
@@ -337,6 +343,7 @@ func TestPaymentHandler_HandlePayMongoWebhook(t *testing.T) {
 			paymentService,
 			&fakeOrderService{},
 			webhookVerifier,
+			slog.Default(),
 		)
 
 		router := gin.New()
@@ -379,8 +386,10 @@ func TestPaymentHandler_HandlePayMongoWebhook(t *testing.T) {
 
 		handler := NewPaymentHandler(
 			paymentService,
+
 			&fakeOrderService{},
 			webhookVerifier,
+			slog.Default(),
 		)
 
 		router := gin.New()

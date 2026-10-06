@@ -158,8 +158,10 @@ func NewContainer(db *bun.DB, cfg *config.Config, log *slog.Logger) *Container {
 		ordersService,
 		paymentMongoAdapter,
 		db,
+		txManager,
 		cfg.PayMongo.SuccessURL,
 		cfg.PayMongo.CancelURL,
+		log,
 	)
 
 	paymentHandler := payments.NewPaymentHandler(

@@ -3,7 +3,10 @@ package payments
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
+
+	"gobrewflow/internal/database"
 
 	"github.com/google/uuid"
 	"github.com/uptrace/bun"
@@ -16,6 +19,7 @@ type fakeOrdersService struct {
 
 func (f *fakeOrdersService) MarkOrderAsPaid(
 	ctx context.Context,
+	db bun.IDB,
 	orderID uuid.UUID,
 ) error {
 	if f.markErr != nil {
@@ -23,14 +27,18 @@ func (f *fakeOrdersService) MarkOrderAsPaid(
 	}
 
 	f.markedOrderID = orderID
+
 	return nil
 }
 
 type fakePaymentRepository struct {
 	createdPayment *Payment
 	createErr      error
+
 	updatedPayment *Payment
-	payment        *Payment
+	updateErr      error
+
+	payment *Payment
 }
 
 func (f *fakePaymentRepository) Create(
@@ -43,6 +51,7 @@ func (f *fakePaymentRepository) Create(
 	}
 
 	f.createdPayment = payment
+
 	return nil
 }
 
@@ -61,6 +70,7 @@ func (f *fakePaymentRepository) FindByOrderID(
 ) (*Payment, error) {
 	return nil, nil
 }
+
 func (f *fakePaymentRepository) FindByProviderCheckoutID(
 	ctx context.Context,
 	db bun.IDB,
@@ -74,6 +84,10 @@ func (f *fakePaymentRepository) Update(
 	db bun.IDB,
 	payment *Payment,
 ) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+
 	f.updatedPayment = payment
 
 	return nil
@@ -95,22 +109,56 @@ func (f *fakePaymentGateway) CreateCheckout(
 	return f.checkout, nil
 }
 
+type fakeTxManager struct {
+	called bool
+	err    error
+}
+
+func (f *fakeTxManager) WithTx(
+	ctx context.Context,
+	fn func(tx bun.IDB) error,
+) error {
+	f.called = true
+
+	if f.err != nil {
+		return f.err
+	}
+
+	return fn(nil)
+}
+
 const (
 	testSuccessURL = "http://localhost:3000/payment/success"
 	testCancelURL  = "http://localhost:3000/payment/cancel"
 )
 
+func newTestPaymentService(
+	repo PaymentRepository,
+	ordersService OrderService,
+	gateway PaymentGateway,
+	txManager database.TxManager,
+) PaymentService {
+	return NewService(
+		repo,
+		ordersService,
+		gateway,
+		nil,
+		txManager,
+		testSuccessURL,
+		testCancelURL,
+		slog.Default(),
+	)
+}
+
 func TestPaymentService_CreateCheckout(t *testing.T) {
 	orderID := uuid.New()
 
 	t.Run("invalid order ID", func(t *testing.T) {
-		service := NewService(
+		service := newTestPaymentService(
 			&fakePaymentRepository{},
 			&fakeOrdersService{},
 			&fakePaymentGateway{},
-			nil,
-			testSuccessURL,
-			testCancelURL,
+			&fakeTxManager{},
 		)
 
 		_, err := service.CreateCheckout(
@@ -123,18 +171,19 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 		)
 
 		if !errors.Is(err, ErrInvalidOrderID) {
-			t.Fatalf("expected ErrInvalidOrderID, got %v", err)
+			t.Fatalf(
+				"expected ErrInvalidOrderID, got %v",
+				err,
+			)
 		}
 	})
 
 	t.Run("invalid amount", func(t *testing.T) {
-		service := NewService(
+		service := newTestPaymentService(
 			&fakePaymentRepository{},
 			&fakeOrdersService{},
 			&fakePaymentGateway{},
-			nil,
-			testSuccessURL,
-			testCancelURL,
+			&fakeTxManager{},
 		)
 
 		_, err := service.CreateCheckout(
@@ -147,18 +196,19 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 		)
 
 		if !errors.Is(err, ErrInvalidAmount) {
-			t.Fatalf("expected ErrInvalidAmount, got %v", err)
+			t.Fatalf(
+				"expected ErrInvalidAmount, got %v",
+				err,
+			)
 		}
 	})
 
 	t.Run("invalid currency", func(t *testing.T) {
-		service := NewService(
+		service := newTestPaymentService(
 			&fakePaymentRepository{},
 			&fakeOrdersService{},
 			&fakePaymentGateway{},
-			nil,
-			testSuccessURL,
-			testCancelURL,
+			&fakeTxManager{},
 		)
 
 		_, err := service.CreateCheckout(
@@ -171,22 +221,23 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 		)
 
 		if !errors.Is(err, ErrInvalidCurrency) {
-			t.Fatalf("expected ErrInvalidCurrency, got %v", err)
+			t.Fatalf(
+				"expected ErrInvalidCurrency, got %v",
+				err,
+			)
 		}
 	})
 
 	t.Run("gateway error", func(t *testing.T) {
 		gatewayErr := errors.New("gateway error")
 
-		service := NewService(
+		service := newTestPaymentService(
 			&fakePaymentRepository{},
 			&fakeOrdersService{},
 			&fakePaymentGateway{
 				createErr: gatewayErr,
 			},
-			nil,
-			testSuccessURL,
-			testCancelURL,
+			&fakeTxManager{},
 		)
 
 		_, err := service.CreateCheckout(
@@ -199,7 +250,10 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 		)
 
 		if !errors.Is(err, gatewayErr) {
-			t.Fatalf("expected gateway error, got %v", err)
+			t.Fatalf(
+				"expected gateway error, got %v",
+				err,
+			)
 		}
 	})
 
@@ -213,7 +267,12 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 			},
 		}
 
-		service := NewService(repo, &fakeOrdersService{}, gateway, nil, testSuccessURL, testCancelURL)
+		service := newTestPaymentService(
+			repo,
+			&fakeOrdersService{},
+			gateway,
+			&fakeTxManager{},
+		)
 
 		result, err := service.CreateCheckout(
 			context.Background(),
@@ -227,7 +286,10 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 		)
 
 		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+			t.Fatalf(
+				"expected no error, got %v",
+				err,
+			)
 		}
 
 		if result == nil {
@@ -239,15 +301,25 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 		}
 
 		if result.CheckoutID != "cs_test_123" {
-			t.Fatalf("expected checkout ID cs_test_123, got %s", result.CheckoutID)
+			t.Fatalf(
+				"expected checkout ID cs_test_123, got %s",
+				result.CheckoutID,
+			)
 		}
 
 		if result.CheckoutURL != "https://checkout.paymongo.com/test" {
-			t.Fatalf("unexpected checkout URL: %s", result.CheckoutURL)
+			t.Fatalf(
+				"unexpected checkout URL: %s",
+				result.CheckoutURL,
+			)
 		}
 
 		if result.Status != StatusPending {
-			t.Fatalf("expected status %s, got %s", StatusPending, result.Status)
+			t.Fatalf(
+				"expected status %s, got %s",
+				StatusPending,
+				result.Status,
+			)
 		}
 
 		if repo.createdPayment == nil {
@@ -255,7 +327,8 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 		}
 
 		if repo.createdPayment.OrderID != orderID {
-			t.Fatalf("expected order ID %s, got %s",
+			t.Fatalf(
+				"expected order ID %s, got %s",
 				orderID,
 				repo.createdPayment.OrderID,
 			)
@@ -301,13 +374,14 @@ func TestPaymentService_CreateCheckout(t *testing.T) {
 }
 
 func TestPaymentService_HandleWebhook(t *testing.T) {
-
 	checkoutID := "cs_test_123"
 	providerPaymentID := "pay_test_123"
+	orderID := uuid.New()
 
-	t.Run("successful payment updates payment", func(t *testing.T) {
+	t.Run("successful payment updates payment and marks order as paid", func(t *testing.T) {
 		payment := &Payment{
 			ID:                 uuid.New(),
+			OrderID:            orderID,
 			ProviderCheckoutID: checkoutID,
 			Status:             StatusPending,
 		}
@@ -316,13 +390,15 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 			payment: payment,
 		}
 
-		service := NewService(
+		orders := &fakeOrdersService{}
+
+		txManager := &fakeTxManager{}
+
+		service := newTestPaymentService(
 			repo,
-			&fakeOrdersService{},
+			orders,
 			nil,
-			nil,
-			"",
-			"",
+			txManager,
 		)
 
 		err := service.HandleWebhook(
@@ -335,9 +411,13 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 		)
 
 		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+			t.Fatalf(
+				"expected no error, got %v",
+				err,
+			)
 		}
 
+		// Payment should be updated.
 		if repo.updatedPayment == nil {
 			t.Fatal("expected payment to be updated")
 		}
@@ -361,11 +441,26 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 				*repo.updatedPayment.ProviderPaymentID,
 			)
 		}
+
+		// Transaction should be started.
+		if !txManager.called {
+			t.Fatal("expected transaction to be started")
+		}
+
+		// Order should be marked as paid.
+		if orders.markedOrderID != orderID {
+			t.Fatalf(
+				"expected order ID %s, got %s",
+				orderID,
+				orders.markedOrderID,
+			)
+		}
 	})
 
 	t.Run("already paid payment is ignored", func(t *testing.T) {
 		payment := &Payment{
 			ID:                 uuid.New(),
+			OrderID:            orderID,
 			ProviderCheckoutID: checkoutID,
 			Status:             StatusPaid,
 		}
@@ -374,13 +469,13 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 			payment: payment,
 		}
 
-		service := NewService(
+		txManager := &fakeTxManager{}
+
+		service := newTestPaymentService(
 			repo,
 			&fakeOrdersService{},
 			nil,
-			nil,
-			"",
-			"",
+			txManager,
 		)
 
 		err := service.HandleWebhook(
@@ -393,17 +488,29 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 		)
 
 		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+			t.Fatalf(
+				"expected no error, got %v",
+				err,
+			)
 		}
 
 		if repo.updatedPayment != nil {
-			t.Fatal("expected already paid payment not to be updated")
+			t.Fatal(
+				"expected already paid payment not to be updated",
+			)
+		}
+
+		if txManager.called {
+			t.Fatal(
+				"expected transaction not to be started",
+			)
 		}
 	})
 
 	t.Run("non-paid webhook is ignored", func(t *testing.T) {
 		payment := &Payment{
 			ID:                 uuid.New(),
+			OrderID:            orderID,
 			ProviderCheckoutID: checkoutID,
 			Status:             StatusPending,
 		}
@@ -412,13 +519,13 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 			payment: payment,
 		}
 
-		service := NewService(
+		txManager := &fakeTxManager{}
+
+		service := newTestPaymentService(
 			repo,
 			&fakeOrdersService{},
 			nil,
-			nil,
-			"",
-			"",
+			txManager,
 		)
 
 		err := service.HandleWebhook(
@@ -431,11 +538,128 @@ func TestPaymentService_HandleWebhook(t *testing.T) {
 		)
 
 		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
+			t.Fatalf(
+				"expected no error, got %v",
+				err,
+			)
 		}
 
 		if repo.updatedPayment != nil {
-			t.Fatal("expected non-paid webhook not to update payment")
+			t.Fatal(
+				"expected non-paid webhook not to update payment",
+			)
+		}
+
+		if txManager.called {
+			t.Fatal(
+				"expected transaction not to be started",
+			)
+		}
+	})
+
+	t.Run("transaction error is returned", func(t *testing.T) {
+		payment := &Payment{
+			ID:                 uuid.New(),
+			OrderID:            orderID,
+			ProviderCheckoutID: checkoutID,
+			Status:             StatusPending,
+		}
+
+		repo := &fakePaymentRepository{
+			payment: payment,
+		}
+
+		txErr := errors.New("transaction error")
+
+		txManager := &fakeTxManager{
+			err: txErr,
+		}
+
+		service := newTestPaymentService(
+			repo,
+			&fakeOrdersService{},
+			nil,
+			txManager,
+		)
+
+		err := service.HandleWebhook(
+			context.Background(),
+			&WebhookResult{
+				CheckoutID: checkoutID,
+				PaymentID:  &providerPaymentID,
+				Status:     StatusPaid,
+			},
+		)
+
+		if !errors.Is(err, txErr) {
+			t.Fatalf(
+				"expected transaction error, got %v",
+				err,
+			)
+		}
+
+		if !txManager.called {
+			t.Fatal("expected transaction to be started")
+		}
+
+		if repo.updatedPayment != nil {
+			t.Fatal(
+				"expected payment not to be updated when transaction fails",
+			)
+		}
+	})
+
+	t.Run("order update error is returned", func(t *testing.T) {
+		payment := &Payment{
+			ID:                 uuid.New(),
+			OrderID:            orderID,
+			ProviderCheckoutID: checkoutID,
+			Status:             StatusPending,
+		}
+
+		repo := &fakePaymentRepository{
+			payment: payment,
+		}
+
+		orderErr := errors.New("failed to mark order as paid")
+
+		orders := &fakeOrdersService{
+			markErr: orderErr,
+		}
+
+		txManager := &fakeTxManager{}
+
+		service := newTestPaymentService(
+			repo,
+			orders,
+			nil,
+			txManager,
+		)
+
+		err := service.HandleWebhook(
+			context.Background(),
+			&WebhookResult{
+				CheckoutID: checkoutID,
+				PaymentID:  &providerPaymentID,
+				Status:     StatusPaid,
+			},
+		)
+
+		if !errors.Is(err, orderErr) {
+			t.Fatalf(
+				"expected order error, got %v",
+				err,
+			)
+		}
+
+		if !txManager.called {
+			t.Fatal("expected transaction to be started")
+		}
+
+		if repo.updatedPayment == nil {
+			t.Fatal(
+				"expected payment update to be attempted",
+			)
 		}
 	})
 }

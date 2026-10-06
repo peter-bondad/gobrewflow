@@ -17,7 +17,7 @@ import (
 type OrdersService interface {
 	CreateOrder(ctx context.Context, input *CreateOrderInput) (*CreateOrderOutput, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*OrderOutput, error)
-	MarkOrderAsPaid(ctx context.Context, orderID uuid.UUID) error
+	MarkOrderAsPaid(ctx context.Context, db bun.IDB, orderID uuid.UUID) error
 }
 
 type ordersService struct {
@@ -256,16 +256,16 @@ func (s *ordersService) FindByID(
 		CashierID:   order.CashierID,
 	}, nil
 }
-
 func (s *ordersService) MarkOrderAsPaid(
 	ctx context.Context,
+	db bun.IDB,
 	orderID uuid.UUID,
 ) error {
 	if orderID == uuid.Nil {
 		return ErrInvalidOrderID
 	}
 
-	order, err := s.ordersRepo.FindByID(ctx, s.db, orderID)
+	order, err := s.ordersRepo.FindByID(ctx, db, orderID)
 	if err != nil {
 		return err
 	}
@@ -274,24 +274,10 @@ func (s *ordersService) MarkOrderAsPaid(
 		return fmt.Errorf("order is not in pending status")
 	}
 
-	order.Status = OrderStatusPaid
-
-	err = s.txManager.WithTx(ctx, func(tx bun.IDB) error {
-		if err := s.ordersRepo.UpdateOrderStatus(
-			ctx,
-			tx,
-			order.ID,
-			order.Status,
-		); err != nil {
-			return fmt.Errorf("failed to update order status: %w", err)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return s.ordersRepo.UpdateOrderStatus(
+		ctx,
+		db,
+		order.ID,
+		OrderStatusPaid,
+	)
 }

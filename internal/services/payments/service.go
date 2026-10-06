@@ -2,7 +2,8 @@ package payments
 
 import (
 	"context"
-	"log"
+	"gobrewflow/internal/database"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,13 +27,16 @@ type paymentService struct {
 	ordersService OrderService
 	gateway       PaymentGateway
 	db            bun.IDB
+	txManager     database.TxManager
 	successURL    string
 	cancelURL     string
+	log           *slog.Logger
 }
 
 type OrderService interface {
 	MarkOrderAsPaid(
 		ctx context.Context,
+		db bun.IDB,
 		orderID uuid.UUID,
 	) error
 }
@@ -42,16 +46,20 @@ func NewService(
 	ordersService OrderService,
 	gateway PaymentGateway,
 	db bun.IDB,
+	tx database.TxManager,
 	successURL string,
 	cancelURL string,
+	log *slog.Logger,
 ) PaymentService {
 	return &paymentService{
 		paymentRepo:   paymentRepo,
 		ordersService: ordersService,
 		gateway:       gateway,
 		db:            db,
+		txManager:     tx,
 		successURL:    successURL,
 		cancelURL:     cancelURL,
+		log:           log,
 	}
 }
 
@@ -145,11 +153,11 @@ func (s *paymentService) HandleWebhook(
 		return err
 	}
 
-	log.Printf(
-		"PayMongo webhook: checkout_id=%s payment_id=%s status=%s",
-		result.CheckoutID,
-		result.PaymentID,
-		result.Status,
+	s.log.InfoContext(
+		ctx,
+		"PayMongo webhook received",
+		slog.String("checkout_id", result.CheckoutID),
+		slog.String("status", string(result.Status)),
 	)
 
 	// 3. Ignore the webhook if this payment was already completed.
@@ -168,11 +176,19 @@ func (s *paymentService) HandleWebhook(
 	payment.ProviderPaymentID = result.PaymentID
 	payment.UpdatedAt = time.Now()
 
-	// 6. Mark the payment as paid.
-	if err := s.paymentRepo.Update(ctx, s.db, payment); err != nil {
-		return err
-	}
+	// 6. Do database operations in a transaction to ensure consistency.
+	return s.txManager.WithTx(ctx, func(tx bun.IDB) error {
+		// 7. Update the payment record in the database.
+		if err := s.paymentRepo.Update(ctx, tx, payment); err != nil {
+			return err
+		}
 
-	// 7. Mark the related order as paid.
-	return s.ordersService.MarkOrderAsPaid(ctx, payment.OrderID)
+		// 8. Mark the related order as paid.
+		if err := s.ordersService.MarkOrderAsPaid(ctx, tx, payment.OrderID); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
 }
