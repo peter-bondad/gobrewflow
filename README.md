@@ -1,24 +1,30 @@
 # BrewFlow
 
-Coffee shop POS and inventory management system.
+Backend-first coffee shop POS and inventory management system built with Go.
 
-BrewFlow is a backend-first MVP focused on reliable order processing, inventory tracking, payments, and staff management. The project is being built as a solo-developer project with a focus on simple architecture, clear business rules, and a path toward a production-ready backend.
+BrewFlow is a solo-developer project focused on learning and applying practical backend engineering: business rules, transactions, inventory consistency, authentication, payments, and clean separation between HTTP, application logic, and data access.
 
-## Status
+The project intentionally favors **simple, explicit architecture over unnecessary abstraction**.
 
-**Current phase:** MVP — In Progress
+> **Status:** MVP — In Progress
 
-The current priority is completing the core order workflow and connecting it with inventory, payments, and discounts.
+---
 
-The project is intentionally being built in stages:
+## What BrewFlow Does
 
-```text
-Core MVP
-   ↓
-Production-ready MVP
-   ↓
-Future product features
-```
+BrewFlow is designed around the core workflow of a small coffee shop:
+
+- Staff authentication and onboarding
+- Product and category management
+- Inventory tracking and stock adjustments
+- Inventory movement history
+- Order creation and order items
+- Payment checkout through PayMongo
+- Payment webhook processing
+- Role-based access for protected staff operations
+- Discounts and other POS rules as the MVP evolves
+
+The current focus is completing the **order → inventory → payment** workflow before expanding into larger POS features.
 
 ---
 
@@ -26,275 +32,201 @@ Future product features
 
 ### Backend
 
-- Go 1.27+
-- Gin — HTTP framework
-- Bun — ORM / SQL toolkit
-- PostgreSQL 17 — database
-- golang-migrate — database migrations
-- JWT (HS256) — authentication
-- Air — development live reload
-- Task — development commands
+| Technology                                                  | Purpose                        |
+| ----------------------------------------------------------- | ------------------------------ |
+| [Go](https://go.dev/)                                       | Backend language               |
+| [Gin](https://gin-gonic.com/)                               | HTTP framework                 |
+| [Bun](https://bun.uptrace.dev/)                             | PostgreSQL ORM / SQL toolkit   |
+| [PostgreSQL](https://www.postgresql.org/)                   | Primary database               |
+| [golang-migrate](https://github.com/golang-migrate/migrate) | Database migrations            |
+| JWT                                                         | Authentication                 |
+| [Air](https://github.com/air-verse/air)                     | Development live reload        |
+| [Task](https://taskfile.dev/)                               | Development commands           |
+| [Docker](https://www.docker.com/)                           | Local PostgreSQL environment   |
+| `log/slog`                                                  | Structured application logging |
+
+### Payment
+
+- **PayMongo Hosted Checkout**
+- Checkout creation through a payment gateway interface
+- Webhook signature verification
+- Webhook payload parsing
+- Idempotent handling of already-paid payments
 
 ### Planned Frontend
+
+The frontend is intentionally being developed after the backend workflows are stable.
 
 - Next.js
 - TypeScript
 - Zod
 - Drizzle
 
-The frontend is intentionally planned after the backend API and core business workflows are established.
-
 ---
 
 ## Architecture
 
-BrewFlow uses a simple layered architecture inspired by Clean Architecture principles:
+BrewFlow uses a straightforward layered architecture inspired by Clean Architecture.
 
 ```text
-HTTP Handler
-     ↓
-Service / Business Logic
-     ↓
-Repository
-     ↓
-PostgreSQL
+HTTP Request
+     │
+     ▼
+ Handler
+     │
+     ▼
+ Service / Business Logic
+     │
+     ├──────────────► Other Services
+     │
+     ▼
+ Repository
+     │
+     ▼
+ PostgreSQL
 ```
 
-### Responsibilities
+External services are accessed through small interfaces so business logic does not need to know provider-specific implementation details.
+
+For example:
+
+```text
+Payment Service
+      │
+      ▼
+PaymentGateway interface
+      │
+      ▼
+PayMongo Adapter
+      │
+      ▼
+PayMongo API
+```
+
+### Layer Responsibilities
 
 **Handlers**
 
-- Parse HTTP requests
-- Validate request-level input
-- Extract authentication information
-- Call services
+- Receive HTTP requests
+- Parse and validate request input
+- Extract request/authentication context
+- Call application services
 - Return HTTP responses
 
-Handlers do not contain business logic.
+Handlers should not contain business workflows.
 
 **Services**
 
-- Contain business rules
-- Coordinate multiple repositories/services
-- Manage use-case transactions
-- Return application DTOs and domain errors
+- Own business rules and use cases
+- Coordinate multiple services/repositories
+- Validate business conditions
+- Control transaction boundaries where needed
+- Return application-level results and errors
 
 **Repositories**
 
-- Handle database queries
-- Persist and retrieve data
-- Do not contain business workflows
+- Read and write database data
+- Receive `bun.IDB` so they can work with either the normal database connection or a transaction
+- Keep SQL/database details out of business logic
 
-**Application / DI**
+**Middleware**
 
-Dependencies are wired manually from the application composition root in:
+- Request IDs
+- Request logging
+- Authentication
+- Authorization
+- Centralized error handling
+- Panic recovery
 
-```text
-internal/app/container.go
-```
+**Application Composition**
 
-This keeps dependencies explicit without introducing a dependency injection framework.
+Dependencies are wired manually in the application layer rather than using a dependency injection framework.
 
----
-
-## Current MVP Scope
-
-| Domain              | Features                                                                         |
-| ------------------- | -------------------------------------------------------------------------------- |
-| Authentication      | JWT login/logout, token blacklist, role-based access                             |
-| Users               | List users                                                                       |
-| Staff Onboarding    | Invitations, accept invitation, set password, cancel, list                       |
-| Categories          | Create, rename, activate/deactivate, list                                        |
-| Products            | Create, automatic SKU generation, find by ID/SKU, list, price in cents, category |
-| Inventory           | Stock level per product                                                          |
-| Inventory Movements | Received, sold, returned, damaged, adjusted                                      |
-| Orders              | Create, list, detail, item management, status lifecycle                          |
-| Payments            | Cash, card, mobile payments, cash change calculation                             |
-| Discounts           | Create, list, percentage/fixed discounts                                         |
-
-### Roles
-
-- `owner`
-- `manager`
-- `staff`
-
-Role permissions are enforced through protected routes and middleware.
+This keeps the dependency graph visible and easy to follow for a small project.
 
 ---
 
-## Development Plan
+## Project Structure
 
-### Phase 1 — Core MVP
+```text
+.
+├── cmd/
+│   └── api/                       # Application entry point
+│
+├── db/
+│   └── migrations/                # PostgreSQL migrations
+│
+├── internal/
+│   ├── app/                       # Application composition / dependency wiring
+│   ├── config/                    # Environment configuration
+│   ├── database/                  # PostgreSQL connection and transactions
+│   ├── middleware/                # HTTP middleware
+│   ├── server/                    # HTTP server and route registration
+│   │
+│   └── services/
+│       ├── account/               # Account relationships
+│       ├── auth/                  # JWT and token blacklist
+│       ├── categories/            # Product categories
+│       ├── inventory/             # Stock levels and stock operations
+│       ├── inventory_movements/   # Inventory audit history
+│       ├── invitations/           # Staff onboarding
+│       ├── order_items/           # Order item operations
+│       ├── orders/                # Order business logic
+│       ├── payments/              # Payment workflow and gateway integration
+│       ├── products/              # Product catalog
+│       └── user/                  # User management
+│
+└── shared/
+    └── logger/                    # Shared logging utilities
+```
 
-**Current**
+Most domains follow the same basic structure when it makes sense:
 
-Focus on completing the core POS workflow:
+```text
+model.go
+repository.go
+service.go
+handler.go
+errors.go
+```
 
-- Orders
-- Order items
-- Order status
-- Inventory integration
-- Inventory movements
-- Payments
-- Discounts
-- Idempotent order creation
-
-The goal is a complete end-to-end workflow rather than adding more features prematurely.
-
-### Phase 2 — Production-Ready MVP
-
-After the core workflows are complete:
-
-- Unit and integration test suite
-- Critical business workflow coverage
-- Request validation
-- Consistent API error responses
-- Database constraints and indexes
-- Transaction and concurrency hardening
-- Authentication/security hardening
-- Structured logging
-- Configuration validation
-- API documentation
-- Observability
-- Deployment configuration
-- Backup/recovery considerations
-
-The goal is to make the MVP reliable enough to operate as a real application, not simply feature-complete.
-
-### Phase 3 — Future Features
-
-Features intentionally outside the initial MVP:
-
-- Customers / CRM
-- Tables and dine-in floor management
-- Shifts and cash drawer
-- Receipt generation
-- Sales reports and analytics
-- Multi-location support
-
-These will be added after the core POS workflow is stable.
+The project does not force every domain into identical abstractions when they are not needed.
 
 ---
 
-## API Documentation
+## Current MVP
 
-The API is currently documented through the route overview in this README.
+### Authentication & Staff
 
-As the API stabilizes, detailed API documentation will be maintained separately, with request/response examples, authentication requirements, validation rules, and error responses.
+- JWT authentication
+- Logout through token blacklist
+- Staff invitations
+- Invitation acceptance
+- Password setup
+- Protected API routes
+- Owner / manager / staff roles
 
-Planned documentation:
+### Products & Categories
 
-```text
-docs/
-└── api.md
-```
-
-An OpenAPI/Swagger specification may be added once the core API surface is stable.
-
----
-
-## API Overview
-
-All protected endpoints require authentication.
-
-### Public
-
-```text
-POST /api/login
-POST /api/logout
-POST /api/accept-invitation
-POST /api/set-password
-```
-
-### Users
-
-```text
-GET /api/protected/users
-```
-
-### Invitations
-
-```text
-POST /api/protected/invitations
-GET  /api/protected/invitations
-POST /api/protected/invitations/:id/cancel
-```
-
-### Categories
-
-```text
-POST   /api/protected/categories
-GET    /api/protected/categories
-PATCH  /api/protected/categories/:id
-PATCH  /api/protected/categories/:id/status
-```
-
-### Products
-
-```text
-POST /api/protected/products
-GET  /api/protected/products
-GET  /api/protected/products/:id
-GET  /api/protected/products/sku/:sku
-```
+- Create products
+- List products
+- Find product by ID
+- Find product by SKU
+- Product categories
+- Product activation/status management
+- Automatic SKU generation
+- Money stored as integer cents
 
 ### Inventory
 
-```text
-GET  /api/protected/inventory/:productId
-GET  /api/protected/inventory/:productId/movements
-POST /api/protected/inventory/:productId/receive
-POST /api/protected/inventory/:productId/return
-POST /api/protected/inventory/:productId/damage
-POST /api/protected/inventory/:productId/adjust
-```
+- Inventory record per product
+- Receive stock
+- Damage stock
+- Adjust stock
+- Stock changes performed as part of order workflows
+- Inventory movement records
 
-### Orders
-
-```text
-POST   /api/protected/orders
-GET    /api/protected/orders
-GET    /api/protected/orders/:id
-POST   /api/protected/orders/:id/status
-POST   /api/protected/orders/:id/items
-PATCH  /api/protected/orders/:id/items/:itemId
-DELETE /api/protected/orders/:id/items/:itemId
-POST   /api/protected/orders/:id/pay
-POST   /api/protected/orders/:id/discount
-```
-
-### Discounts
-
-```text
-POST /api/protected/discounts
-GET  /api/protected/discounts
-```
-
-The complete API reference will be maintained separately as the API grows.
-
----
-
-## Key Engineering Decisions
-
-### Money
-
-All monetary values are stored as `BIGINT` cents.
-
-No floating-point values are used for money.
-
-### Tax
-
-Tax is calculated by the backend using the configured `TAX_RATE` environment variable.
-
-The default rate is `0.08`.
-
-Tax is rounded half-up to the nearest cent.
-
-### Orders and Inventory
-
-Inventory changes are performed atomically with the related business operation.
-
-Inventory movements are used to record stock changes:
+Supported movement types include:
 
 ```text
 RECEIVED
@@ -304,62 +236,402 @@ DAMAGED
 ADJUSTED
 ```
 
-Order-related inventory changes are handled by the order workflow rather than exposing a separate `sell` inventory endpoint.
+### Orders
 
-### Transactions
+- Create orders
+- Order items
+- Product price snapshots at order creation
+- Inventory integration
+- Order totals
+- Pending → paid workflow
+- Order numbers
 
-Use cases that modify multiple resources are executed inside a single database transaction.
+### Payments
+
+BrewFlow currently uses **PayMongo Hosted Checkout**.
+
+The basic flow is:
+
+```text
+Client
+  │
+  │ Create checkout
+  ▼
+BrewFlow API
+  │
+  │ CreateCheckout()
+  ▼
+Payment Gateway Interface
+  │
+  ▼
+PayMongo
+  │
+  │ Checkout URL
+  ▼
+Client
+  │
+  │ Customer completes payment
+  ▼
+PayMongo
+  │
+  │ Webhook
+  ▼
+BrewFlow
+  │
+  ├── Verify signature
+  ├── Parse webhook
+  ├── Find payment
+  ├── Mark payment as PAID
+  └── Mark order as PAID
+```
+
+The application stores its own payment record rather than relying only on PayMongo's data.
+
+Current payment statuses:
+
+```text
+PENDING
+PAID
+FAILED
+CANCELLED
+REFUNDED
+```
+
+Current supported PayMongo payment methods represented by the domain model:
+
+```text
+CARD
+GCASH
+GRABPAY
+MAYA
+QRPH
+```
+
+### Discounts
+
+The discount domain is part of the MVP and is being integrated into the order workflow.
+
+---
+
+## Important Engineering Decisions
+
+### Money is stored as integer cents
+
+Money is represented using `int64` rather than floating-point numbers.
 
 For example:
 
 ```text
-Create Order
-    ↓
-Create Order Items
-    ↓
-Update Inventory
-    ↓
-Create Inventory Movements
+₱150.50 → 15050
 ```
 
-If any operation fails, the transaction is rolled back.
+This avoids floating-point rounding problems in financial calculations.
 
-### Idempotency
+### Transactions
 
-Order creation supports an optional:
+Multi-step operations use database transactions when the changes must succeed or fail together.
+
+For example, order creation coordinates:
 
 ```text
-Idempotency-Key
+Validate products
+      ↓
+Validate stock
+      ↓
+Begin transaction
+      ↓
+Update inventory
+      ↓
+Create order
+      ↓
+Create order items
+      ↓
+Commit
 ```
 
-header to prevent accidental duplicate order creation when clients retry requests.
+If a step fails, the transaction is rolled back.
 
-### Errors
+The project uses a small transaction manager abstraction rather than manually managing transaction lifecycle in every service.
 
-Services use package-level sentinel errors and domain/application errors.
+### Repository interfaces
 
-HTTP error responses are mapped centrally rather than implementing HTTP-specific error handling throughout the service layer.
+Services depend on repository interfaces rather than concrete repository implementations.
+
+This keeps database concerns separate from business logic and makes the important dependencies explicit.
+
+### Payment gateway abstraction
+
+The payment service does not directly depend on PayMongo's HTTP API.
+
+Instead:
+
+```text
+Payment Service
+      ↓
+PaymentGateway
+      ↓
+PayMongo Adapter
+```
+
+This makes the payment provider replaceable without moving provider-specific code into the payment business logic.
+
+### Webhook verification
+
+PayMongo webhooks are not trusted simply because they reach the webhook endpoint.
+
+BrewFlow:
+
+1. Reads the raw request body.
+2. Reads the PayMongo signature header.
+3. Verifies the signature.
+4. Parses the verified payload.
+5. Finds the internal payment using the provider checkout ID.
+6. Updates the payment.
+7. Marks the related order as paid.
+
+Already-paid payments are ignored so repeated successful webhook deliveries do not repeat the payment transition.
+
+### Explicit dependency wiring
+
+Dependencies are assembled manually in the application container.
+
+There is no DI framework.
+
+The goal is to keep the project easy to understand while still respecting dependency inversion where it provides a real benefit.
+
+---
+
+## API
+
+The API is currently versionless and uses the `/api` prefix.
+
+### Health
+
+```http
+GET /health
+```
+
+### Public Authentication
+
+```http
+POST /api/login
+POST /api/logout
+```
+
+### Public Staff Onboarding
+
+```http
+POST /api/accept-invitation
+POST /api/set-password
+```
+
+### PayMongo Webhook
+
+This endpoint is public because PayMongo needs to call it directly.
+
+```http
+POST /api/webhooks/paymongo
+```
+
+The webhook is protected by PayMongo signature verification rather than JWT authentication.
+
+### Protected Users
+
+```http
+GET /api/protected/users
+```
+
+### Protected Invitations
+
+```http
+POST /api/protected/invitations
+GET  /api/protected/invitations
+POST /api/protected/invitations/:id/cancel
+```
+
+### Protected Categories
+
+```http
+POST  /api/protected/categories
+PATCH /api/protected/categories/:id
+PATCH /api/protected/categories/:id/status
+GET   /api/protected/categories
+```
+
+### Protected Products
+
+```http
+POST /api/protected/products
+GET  /api/protected/products
+GET  /api/protected/products/:id
+GET  /api/protected/products/sku/:sku
+```
+
+### Protected Inventory
+
+```http
+GET  /api/protected/inventory/:productId
+POST /api/protected/inventory/:productId/adjust
+POST /api/protected/inventory/:productId/receive
+POST /api/protected/inventory/:productId/damage
+```
+
+### Protected Orders
+
+```http
+POST /api/protected/orders
+```
+
+Additional order operations are being added as the order workflow is completed.
+
+### Protected Payments
+
+```http
+POST /api/protected/payments/checkout
+```
+
+The checkout endpoint creates a PayMongo hosted checkout session for a pending order and returns the checkout URL to the client.
+
+---
+
+## Local Development
+
+### Requirements
+
+- Go 1.26.5+
+- Docker
+- Task
+- PostgreSQL 17 (Docker is recommended for local development)
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/peter-bondad/gobrewflow.git
+cd gobrewflow
+```
+
+### 2. Configure environment variables
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Set the required values for your local environment.
+
+For local PostgreSQL, the Docker Compose setup uses port `5433` by default.
+
+### 3. Install development tools
+
+```bash
+task setup
+```
+
+This installs the migration CLI and Air.
+
+### 4. Start PostgreSQL
+
+```bash
+task docker-up
+```
+
+### 5. Run migrations
+
+```bash
+task migrate-up
+```
+
+### 6. Start the API
+
+```bash
+task dev
+```
+
+The server uses the `PORT` value from your environment.
+
+### Useful commands
+
+```bash
+# Start development server
+task dev
+
+# Start PostgreSQL
+task docker-up
+
+# Stop PostgreSQL and remove its volume
+task docker-down
+
+# Run pending migrations
+task migrate-up
+
+# Roll back the latest migration
+task migrate-down
+
+# Reset the local database and run migrations again
+task migrate-refresh
+
+# Create a migration
+task migrate-create NAME=create_example_table
+
+# Run tests
+go test ./...
+```
+
+---
+
+## Environment Variables
+
+The application reads configuration from environment variables.
+
+The available configuration includes:
+
+```text
+APP_ENV
+PORT
+LOG_LEVEL
+APP_SHUTDOWN_TIMEOUT
+
+DB_HOST
+DB_PORT
+DB_USER
+DB_PASSWORD
+DB_NAME
+DB_SSL_MODE
+
+JWT_SECRET_KEY
+INVITATION_BASE_URL
+INVITATION_TTL
+
+PAYMONGO_BASE_URL
+PAYMONGO_SUCCESS_URL
+PAYMONGO_CANCEL_URL
+PAYMONGO_TEST_PUBLIC_KEY
+PAYMONGO_TEST_SECRET_KEY
+```
+
+See `.env.example` for the current configuration surface.
+
+**Never commit real credentials or API keys.**
 
 ---
 
 ## Testing
 
-Automated testing is planned as part of the production-ready MVP phase.
+Testing is part of the production-readiness phase.
 
-The testing strategy will focus on the parts of the system where correctness matters most:
+The priority is meaningful coverage of business-critical behavior rather than chasing a percentage:
 
-- Service/business logic
-- Repository/database behavior
-- HTTP handlers
-- Authentication and authorization
-- Transactional workflows
+- Order creation
 - Inventory changes
-- Order creation and lifecycle
-- Payment and discount calculations
+- Transactional workflows
+- Payment state transitions
+- Webhook verification and parsing
+- Authentication and authorization
+- Repository behavior
+- Validation and error handling
 
-The goal is to prioritize meaningful tests around business rules and critical workflows rather than maximizing test coverage for its own sake.
-
-Tests will be run with:
+Run the current test suite with:
 
 ```bash
 go test ./...
@@ -367,105 +639,101 @@ go test ./...
 
 ---
 
-## Project Structure
+## Development Roadmap
 
-```text
-internal/
-├── app/                       # Application composition and DI
-├── config/                    # Configuration
-├── database/                  # Database connection and transactions
-├── middleware/                # Authentication, authorization, errors, logging
-├── server/                    # HTTP server and routes
-└── services/
-    ├── auth/                  # JWT and token blacklist
-    ├── user/                  # User management
-    ├── account/               # Account relationships
-    ├── invitations/           # Staff onboarding
-    ├── categories/            # Product categories
-    ├── products/              # Product catalog
-    ├── inventory/             # Stock levels
-    ├── inventory_movements/   # Stock movement history
-    ├── orders/                # Orders and order items
-    ├── payments/              # Payments
-    └── discounts/             # Discounts
+### Phase 1 — Core MVP
 
-shared/                        # Shared non-domain utilities
-db/
-└── migrations/                # Database migrations
-```
+**Current focus**
 
-Each domain keeps its business logic close to the domain:
+- [x] Authentication foundation
+- [x] Staff invitations
+- [x] Categories
+- [x] Products
+- [x] Inventory
+- [x] Inventory movements
+- [x] Basic order creation
+- [x] PayMongo hosted checkout foundation
+- [x] PayMongo webhook processing
+- [ ] Complete order lifecycle
+- [ ] Complete discount integration
+- [ ] Finalize payment/order state transitions
 
-```text
-service.go
-repository.go
-handler.go
-models / DTOs
-errors
-```
+### Phase 2 — Production Readiness
 
-depending on the needs of that domain.
+After the core workflow is stable:
 
----
+- [ ] Unit tests
+- [ ] Integration tests
+- [ ] Critical workflow coverage
+- [ ] Stronger request validation
+- [ ] Consistent API error responses
+- [ ] Database indexes and constraints review
+- [ ] Transaction/concurrency hardening
+- [ ] Authentication/security hardening
+- [ ] Structured logging improvements
+- [ ] API documentation
+- [ ] Observability
+- [ ] Deployment configuration
+- [ ] Backup/recovery considerations
 
-## Getting Started
+### Phase 3 — Future POS Features
 
-### Requirements
+Features intentionally kept outside the initial MVP:
 
-- Go
-- Docker
-- Task
-- PostgreSQL
+- [ ] Customers / CRM
+- [ ] Dine-in tables and floor management
+- [ ] Staff shifts and cash drawer management
+- [ ] Receipt generation
+- [ ] Sales reports and analytics
+- [ ] Multi-location support
 
-### Start PostgreSQL
-
-```bash
-task docker-up
-```
-
-### Run migrations
-
-```bash
-task migrate-up
-```
-
-### Start the development server
-
-```bash
-task dev
-```
-
-The API will be available at:
-
-```text
-http://localhost:8080
-```
-
-Health check:
-
-```text
-GET /health
-```
+The goal is to finish the core workflow before expanding the product surface.
 
 ---
 
 ## Development Principles
 
-BrewFlow intentionally favors simple solutions over unnecessary abstraction.
+BrewFlow is a learning project, but the codebase is being built with production-oriented habits.
 
-- Keep business logic in services.
+- **Keep it simple.**
+- Put business rules in services.
 - Keep HTTP concerns in handlers.
 - Keep database access in repositories.
-- Return DTOs instead of database models from service boundaries.
-- Use database transactions for multi-step state changes.
-- Prefer explicit dependencies through manual DI.
-- Keep domain rules close to the domain that owns them.
-- Add abstractions when they solve a real problem, not preemptively.
-- Keep migrations reversible.
-- Prefer correctness and maintainability over premature optimization.
+- Use interfaces at meaningful boundaries.
+- Prefer explicit dependencies over framework magic.
+- Use transactions for atomic multi-step operations.
+- Keep provider-specific code behind adapters.
+- Store money safely as integer cents.
+- Prefer type-safe, explicit models.
+- Avoid abstractions until they solve a real problem.
+- Optimize for correctness and maintainability before performance.
+- Build the backend workflow first, then add the frontend.
+
+---
+
+## Why This Project?
+
+BrewFlow is primarily a backend engineering project.
+
+It is being used to practice real backend concerns that are easy to overlook in simple CRUD applications:
+
+- Designing business workflows
+- Maintaining database consistency
+- Handling transactions
+- Managing inventory state
+- Modeling payment states
+- Integrating third-party payment providers
+- Verifying webhooks
+- Handling retries and duplicate events
+- Separating application logic from infrastructure
+- Designing APIs that can evolve without unnecessary complexity
+
+The goal is not to build the largest POS system possible. The goal is to build a **small, understandable system correctly**.
 
 ---
 
 ## License
 
-MIT
+MIT License
+
+See [LICENSE](LICENSE) for details.
