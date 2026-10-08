@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"gobrewflow/internal/services/payments"
-	"net/http"
+	"gobrewflow/shared"
 )
 
 var _ payments.PaymentGateway = (*Adapter)(nil)
@@ -23,8 +23,6 @@ func NewAdapter(
 		webhookSecret: webhookSecret,
 	}
 }
-
-var _ payments.PaymentGateway = (*Adapter)(nil)
 
 func (a *Adapter) CreateCheckout(
 	ctx context.Context,
@@ -56,11 +54,12 @@ func (a *Adapter) CreateCheckout(
 		return nil, err
 	}
 
-	responseBody, err := a.client.do(
+	idempotencyKey := shared.GenerateIdempotencyKey()
+
+	responseBody, err := a.client.DoCreateCheckout(
 		ctx,
-		http.MethodPost,
-		"/v2/checkout_sessions",
 		body,
+		idempotencyKey,
 	)
 	if err != nil {
 		return nil, err
@@ -70,10 +69,12 @@ func (a *Adapter) CreateCheckout(
 
 	if err := json.Unmarshal(responseBody, &res); err != nil {
 		return nil, err
+
 	}
 
 	return &payments.CreateCheckoutOutput{
 		CheckoutID:  res.Data.ID,
 		CheckoutURL: res.Data.Attributes.CheckoutURL,
 	}, nil
+
 }
