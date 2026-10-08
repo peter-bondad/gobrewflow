@@ -12,6 +12,13 @@ type PayMongoConfig struct {
 	WebhookSecret string
 	SuccessURL    string
 	CancelURL     string
+	RetryConfig   RetryConfig
+}
+
+type RetryConfig struct {
+	MaxAttempts int
+	BaseDelay   time.Duration
+	MaxDelay    time.Duration
 }
 
 // Global configuration struct for the application
@@ -98,6 +105,11 @@ func Load() (*Config, error) {
 			WebhookSecret: getEnv("PAYMONGO_WEBHOOK_SECRET", ""),
 			SuccessURL:    getEnv("PAYMONGO_SUCCESS_URL", "http://localhost:3000/payment/success"),
 			CancelURL:     getEnv("PAYMONGO_CANCEL_URL", "http://localhost:3000/payment/cancel"),
+			RetryConfig: RetryConfig{
+				MaxAttempts: getEnvInt("PAYMONGO_MAX_ATTEMPTS", 3),
+				BaseDelay:   getEnvDuration("PAYMONGO_RETRY_BASE_DELAY", 500*time.Millisecond),
+				MaxDelay:    getEnvDuration("PAYMONGO_RETRY_MAX_DELAY", 2*time.Second),
+			},
 		},
 	}
 
@@ -133,6 +145,42 @@ func (c *Config) validate() error {
 		return fmt.Errorf("INVITATION_TTL must be greater than 0")
 	}
 
+	if c.PayMongo.BaseURL == "" {
+		return fmt.Errorf("PAYMONGO_BASE_URL is required")
+	}
+
+	if c.PayMongo.SecretKey == "" {
+		return fmt.Errorf("PAYMONGO_TEST_SECRET_KEY is required")
+	}
+
+	if c.PayMongo.WebhookSecret == "" {
+		return fmt.Errorf("PAYMONGO_WEBHOOK_SECRET is required")
+	}
+
+	if c.PayMongo.SuccessURL == "" {
+		return fmt.Errorf("PAYMONGO_SUCCESS_URL is required")
+	}
+
+	if c.PayMongo.CancelURL == "" {
+		return fmt.Errorf("PAYMONGO_CANCEL_URL is required")
+	}
+
+	if c.PayMongo.RetryConfig.MaxAttempts <= 0 {
+		return fmt.Errorf("PAYMONGO_MAX_ATTEMPTS must be greater than 0")
+	}
+
+	if c.PayMongo.RetryConfig.BaseDelay <= 0 {
+		return fmt.Errorf("PAYMONGO_RETRY_BASE_DELAY must be greater than 0")
+	}
+
+	if c.PayMongo.RetryConfig.MaxDelay <= 0 {
+		return fmt.Errorf("PAYMONGO_RETRY_MAX_DELAY must be greater than 0")
+	}
+
+	if c.PayMongo.RetryConfig.BaseDelay > c.PayMongo.RetryConfig.MaxDelay {
+		return fmt.Errorf("PAYMONGO_RETRY_BASE_DELAY cannot be greater than PAYMONGO_RETRY_MAX_DELAY")
+	}
+
 	return nil
 }
 
@@ -140,6 +188,18 @@ func getEnv(key string, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
+	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	if value := os.Getenv(key); value != "" {
+		var result int
+
+		if _, err := fmt.Sscanf(value, "%d", &result); err == nil {
+			return result
+		}
+	}
+
 	return fallback
 }
 

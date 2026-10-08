@@ -149,6 +149,8 @@ func NewContainer(db *bun.DB, cfg *config.Config, log *slog.Logger) *Container {
 		cfg.PayMongo.BaseURL,
 		cfg.PayMongo.SecretKey,
 		nil,
+		cfg.PayMongo.RetryConfig,
+		log,
 	)
 
 	paymentMongoAdapter := paymongo.NewAdapter(paymongoClient, cfg.PayMongo.WebhookSecret)
