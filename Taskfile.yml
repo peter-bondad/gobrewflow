@@ -93,3 +93,18 @@ tasks:
     desc: Stop Docker Compose services and remove volumes
     cmds:
       - docker compose down -v
+
+  test:
+    desc: "Run all tests"
+    cmds:
+      - go test ./...
+
+  test-verbose:
+    desc: "Run all tests with verbose output"
+    cmds:
+      - go test -v ./...
+
+  test-race:
+    desc: "Run all tests with the race detector"
+    cmds:
+      - go test -race ./...
