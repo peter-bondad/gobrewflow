@@ -20,30 +20,29 @@ var ErrInvalidWebhookSignature = errors.New("invalid webhook signature")
 // the entire PayMongo webhook response.
 type webhookEvent struct {
 	Data struct {
-		Attributes struct {
+		Type string `json:"type"`
+
+		Data struct {
+			ID   string `json:"id"`
 			Type string `json:"type"`
 
-			Data struct {
-				ID         string `json:"id"`
-				Type       string `json:"type"`
-				Attributes struct {
-					ReferenceNumber string `json:"reference_number"`
+			Attributes struct {
+				ReferenceNumber string `json:"reference_number"`
 
-					Payments []struct {
-						ID         string `json:"id"`
-						Attributes struct {
-							Amount   int64  `json:"amount"`
-							Currency string `json:"currency"`
-							Status   string `json:"status"`
+				Payments []struct {
+					ID         string `json:"id"`
+					Attributes struct {
+						Amount   int64  `json:"amount"`
+						Currency string `json:"currency"`
+						Status   string `json:"status"`
 
-							Source struct {
-								Type string `json:"type"`
-							} `json:"source"`
-						} `json:"attributes"`
-					} `json:"payments"`
-				} `json:"attributes"`
-			} `json:"data"`
-		} `json:"attributes"`
+						Source struct {
+							Type string `json:"type"`
+						} `json:"source"`
+					} `json:"attributes"`
+				} `json:"payments"`
+			} `json:"attributes"`
+		} `json:"data"`
 	} `json:"data"`
 }
 
@@ -127,15 +126,15 @@ func (a *Adapter) ParseWebhook(
 
 	// 2. Make sure this is the payment-paid event
 	//    that BrewFlow currently handles.
-	if event.Data.Attributes.Type != "checkout_session.payment.paid" {
+	if event.Data.Type != "checkout_session.payment.paid" {
 		return nil, fmt.Errorf(
 			"unsupported webhook event: %s",
-			event.Data.Attributes.Type,
+			event.Data.Type,
 		)
 	}
 
 	// 3. Get the checkout session data from the event.
-	checkout := event.Data.Attributes.Data
+	checkout := event.Data.Data
 
 	// 4. A checkout session ID is required
 	//    to identify the PayMongo checkout.
